@@ -321,17 +321,7 @@ impl<'assistant> InputPin<'assistant, Assistant> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
         match lock {
-            Ok(mut assistant) => {
-                let pin_state = self
-                    .pin
-                    .read_level::<HostToAssistant, AssistantToHost>(
-                        Duration::from_millis(10),
-                        &mut assistant.conn,
-                    )
-                    .map_err(|err| AssistantError::PinRead(err))?;
-
-                Ok(pin_state.0 == pin::Level::Low)
-            }
+            Ok(mut assistant) => assistant.pin_is_low(&mut self.pin),
             Err(_) => Err(AssistantError::AssistantLocked),
         }
     }
@@ -393,29 +383,19 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
         }
     }
 
-    /// Indicates whether this pin receives a **Low** signal from the test target
-    pub fn is_low(&mut self) -> Result<bool, AssistantError> {
+    /// Indicates whether this pin currently is set to **Low**
+    pub fn is_set_low(&mut self) -> Result<bool, AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
         match lock {
-            Ok(mut assistant) => {
-                let pin_state = self
-                    .pin
-                    .read_level::<HostToAssistant, AssistantToHost>(
-                        Duration::from_millis(10),
-                        &mut assistant.conn,
-                    )
-                    .map_err(|err| AssistantError::PinRead(err))?;
-
-                Ok(pin_state.0 == pin::Level::Low)
-            }
+            Ok(mut assistant) => assistant.pin_is_low(&mut self.pin),
             Err(_) => Err(AssistantError::AssistantLocked),
         }
     }
 
-    /// Indicates whether this pin receives a **High** signal from the test target
-    pub fn is_high(&mut self) -> Result<bool, AssistantError> {
-        match self.is_low() {
+    /// Indicates whether this pin currently is set to **High**
+    pub fn is_set_high(&mut self) -> Result<bool, AssistantError> {
+        match self.is_set_low() {
             Ok(is_low) => Ok(!is_low),
             Err(err) => Err(err),
         }
@@ -462,6 +442,20 @@ impl Assistant {
     ) -> Result<(), AssistantError> {
         pin.set_direction_input::<HostToAssistant>(&mut self.conn)
             .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
+    }
+
+    fn pin_is_low(
+        &mut self,
+        pin: &mut Pin<DynamicPin>,
+    ) -> Result<bool , AssistantError> {
+        let pin_state = pin
+            .read_level::<HostToAssistant, AssistantToHost>(
+                Duration::from_millis(10),
+                &mut self.conn,
+            )
+            .map_err(|err| AssistantError::PinRead(err))?;
+
+        Ok(pin_state.0 == pin::Level::Low)
     }
 
     /// Make the test-assistant's pin with number `pin` an Input pin.

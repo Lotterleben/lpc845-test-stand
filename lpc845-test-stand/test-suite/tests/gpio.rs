@@ -94,7 +94,7 @@ fn assistant_should_read_level_without_level_change_interruptable_out_pin() -> R
         .assistant
         .create_gpio_output_pin(interruptable_pin, Level::High)?;
 
-    assert!(out_pin.is_high()?);
+    assert!(out_pin.is_set_high()?);
 
     Ok(())
 }
@@ -110,14 +110,14 @@ fn assistant_should_read_level_repeatedly_interruptable_pin() -> Result {
         .create_gpio_output_pin(interruptable_pin, Level::High)?;
 
     // RUN TEST
-    assert!(out_pin.is_high()?);
-    assert!(out_pin.is_high()?);
-    assert!(out_pin.is_high()?);
+    assert!(out_pin.is_set_high()?);
+    assert!(out_pin.is_set_high()?);
+    assert!(out_pin.is_set_high()?);
 
     out_pin.set_low()?;
-    assert!(out_pin.is_low()?);
-    assert!(out_pin.is_low()?);
-    assert!(out_pin.is_low()?);
+    assert!(out_pin.is_set_low()?);
+    assert!(out_pin.is_set_low()?);
+    assert!(out_pin.is_set_low()?);
 
     Ok(())
 }
@@ -169,10 +169,10 @@ fn assistant_should_return_interruptable_pin_status_immediately() -> Result {
 
     // RUN TEST
     out_pin.set_low()?;
-    assert!(out_pin.is_low()?);
+    assert!(out_pin.is_set_low()?);
 
     out_pin.set_high()?;
-    assert!(out_pin.is_high()?);
+    assert!(out_pin.is_set_high()?);
 
     Ok(())
 }
@@ -192,11 +192,11 @@ fn assistant_all_dyn_gpio_pins_should_work() -> Result {
         // RUN TEST & ASSERT POSTCONDITION
         out_pin.set_high()?;
         sleep(time::Duration::from_millis(PIN_WAIT_TIME));
-        assert!(out_pin.is_high()?);
+        assert!(out_pin.is_set_high()?);
 
         out_pin.set_low()?;
         sleep(time::Duration::from_millis(PIN_WAIT_TIME));
-        assert!(out_pin.is_low()?);
+        assert!(out_pin.is_set_low()?);
     }
 
     Ok(())
