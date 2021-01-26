@@ -124,8 +124,10 @@ impl RxIdle<'_> {
                 self.on_frame_delimiter = false;
                 self.buf.clear();
             }
-            self.buf.push(b)
-                .map_err(|_| ProcessError::BufferFull)?;
+
+            // ignore buffer full error. we know this is not a valid message but wait until a frame
+            // delimiter for synchronization's sake instead of early returning an error 
+            let _ = self.buf.push(b);
 
             // Requests are COBS-encoded, so we know that `0` means we
             // received a full frame.
