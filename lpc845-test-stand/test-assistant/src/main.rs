@@ -870,31 +870,6 @@ const APP: () = {
                 &mut dynamic_int_pins,
             );
             handle_pin_interrupt_noint_dynamic(dyn_noint_levels_out, &mut dynamic_noint_pins);
-
-            // We need this critical section to protect against a race
-            // conditions with the interrupt handlers. Otherwise, the following
-            // sequence of events could occur:
-            // 1. We check the queues here, they're empty.
-            // 2. New data is received, an interrupt handler adds it to a queue.
-            // 3. The interrupt handler is done, we're back here and going to
-            //    sleep.
-            //
-            // This might not be observable, if something else happens to wake
-            // us up before the test suite times out. But it could also lead to
-            // spurious test failures.
-            interrupt::free(|_| {
-                let should_sleep =
-                    !host_rx.can_process() && !target_rx.can_process() && pinint0_idle.is_ready();
-
-                if should_sleep {
-                    // On LPC84x MCUs, debug mode is not supported when
-                    // sleeping. This interferes with RTT communication. Only
-                    // sleep, if the user enables this through a compile-time
-                    // flag.
-                    #[cfg(feature = "sleep")]
-                    asm::wfi();
-                }
-            });
         }
     }
 
