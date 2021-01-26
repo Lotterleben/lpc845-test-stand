@@ -263,12 +263,12 @@ const APP: () = {
         //
         // This assumes a system clock of 12 MHz (which is the default and, as
         // of this writing, has not been changed in this program). The resulting
-        // rate is roughly 115200 baud.
+        // rate is roughly 38400 baud.
         let clock_config = {
             syscon.frg0.select_clock(frg::Clock::FRO);
             syscon.frg0.set_mult(22);
             syscon.frg0.set_div(0xFF);
-            usart::Clock::new(&syscon.frg0, 5, 16)
+            usart::Clock::new(&syscon.frg0, 17, 16)
         };
 
         // Assign pins to USART0 for RX/TX functions. On the LPC845-BRK, those
