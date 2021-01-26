@@ -562,7 +562,7 @@ const APP: () = {
                 })
                 .expect("Error processing USART data");
 
-            host_rx
+            let _ = host_rx
                 .process_message(|message| {
                     match message {
                         HostToAssistant::SendUsart {
@@ -857,8 +857,7 @@ const APP: () = {
 
                         }
                     }
-                })
-                .expect("Error processing host request");
+                });
 
             // TODO: is pwm pin ever handled in reading messages?
             handle_pin_interrupt(pwm,   InputPin::Pwm,   &mut pins);
