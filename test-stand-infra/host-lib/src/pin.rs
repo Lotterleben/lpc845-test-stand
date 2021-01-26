@@ -5,7 +5,6 @@ use std::{
     convert::TryInto,
     fmt::Debug,
     mem::transmute,
-    thread::sleep,
     time::Duration,
 };
 
@@ -113,10 +112,6 @@ impl<Id> Pin<Id>
                 + Debug
                 + Deserialize<'de>,
     {
-        // Wait for a bit, to give whatever event is expected to change the
-        // level some time to happen.
-        sleep(timeout);
-
         let request = pin::ReadLevel {  pin: self.pin };
         let request: Request = request.into();
         conn.send(&request)
