@@ -69,6 +69,7 @@ impl<I, Mode> RxInt<'_, I, Mode>
 pub struct RxIdle<'r> {
     pub queue: spsc::Consumer<'r, u8, QueueCap>,
     pub buf:   Vec<u8, QueueCap>,
+    pub on_frame_delimiter: bool,
 }
 
 impl RxIdle<'_> {
@@ -118,12 +119,19 @@ impl RxIdle<'_> {
         where M: Deserialize<'de>
     {
         while let Some(b) = self.queue.dequeue() {
+            if self.on_frame_delimiter {
+                // erase previous frame from buffer
+                self.on_frame_delimiter = false;
+                self.buf.clear();
+            }
             self.buf.push(b)
                 .map_err(|_| ProcessError::BufferFull)?;
 
             // Requests are COBS-encoded, so we know that `0` means we
             // received a full frame.
             if b == 0 {
+                self.on_frame_delimiter = true;
+
                 let message = postcard::from_bytes_cobs(&mut self.buf)
                     .map_err(|err| ProcessError::Postcard(err))?;
                 f(message)
@@ -133,21 +141,6 @@ impl RxIdle<'_> {
         }
 
         Ok(())
-    }
-
-    /// Clear the internal buffer
-    ///
-    /// This method _must_ be called after every call to [`process_message`], or
-    /// on the next call, the same message will be processed again.
-    ///
-    /// It would be much nice, if this functionality could be included in
-    /// [`process_message`], but unfortunately there's no straight-forward way
-    /// to do this, as the lifetime required by the use of `Deserialize`
-    /// interferes.
-    ///
-    /// [`process_message`]: #method.process_message
-    pub fn clear_buf(&mut self) {
-        self.buf.clear();
     }
 }
 

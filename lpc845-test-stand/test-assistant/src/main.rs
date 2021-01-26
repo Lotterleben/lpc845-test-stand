@@ -859,7 +859,6 @@ const APP: () = {
                     }
                 })
                 .expect("Error processing host request");
-            host_rx.clear_buf();
 
             // TODO: is pwm pin ever handled in reading messages?
             handle_pin_interrupt(pwm,   InputPin::Pwm,   &mut pins);

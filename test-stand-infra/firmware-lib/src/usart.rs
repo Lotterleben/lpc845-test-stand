@@ -70,6 +70,7 @@ impl Usart {
         let rx_idle = RxIdle {
             queue: cons,
             buf:   Vec::new(),
+            on_frame_delimiter: false,
         };
         let tx = Tx {
             usart: usart.tx,
