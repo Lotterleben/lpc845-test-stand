@@ -901,10 +901,10 @@ const APP: () = {
 
     #[task(binds = USART0, resources = [host_rx_int])]
     fn usart0(cx: usart0::Context) {
-        cx.resources
+        // ignore serial errors from the host
+        let _ = cx.resources
             .host_rx_int
-            .receive()
-            .expect("Error receiving from USART0");
+            .receive();
     }
 
     #[task(binds = USART1, resources = [target_rx_int])]
