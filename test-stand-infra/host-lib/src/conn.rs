@@ -35,6 +35,7 @@ impl Conn {
                 // this from the configuration file later.
                 &SerialPortSettings {
                     baud_rate: 38_400,
+                    timeout: Duration::from_millis(10),
                     .. SerialPortSettings::default()
                 }
             )
