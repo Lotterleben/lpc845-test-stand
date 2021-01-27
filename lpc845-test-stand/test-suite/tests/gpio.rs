@@ -4,9 +4,9 @@
 //! wiring instructions.
 
 use std::thread::sleep;
-use std::time;
+use std::time::{self, Duration, Instant};
 
-use host_lib::assistant::{Assistant, InputPin, LEGAL_DYNAMIC_PINS};
+use host_lib::assistant::{Assistant, AssistantError, InputPin, LEGAL_DYNAMIC_PINS};
 use lpc845_messages::{pin::Level, PinNumber};
 use lpc845_test_suite::{Result, TestStand};
 
@@ -14,6 +14,99 @@ const RED_LED_PIN: PinNumber = 29;
 const GRN_LED_PIN: PinNumber = 31;
 
 const PIN_WAIT_TIME: u64 = 300;
+
+// requires a 75% 1s PWM signal connected to RED_LED_PIN so disabled (ignored) by default
+#[test]
+#[ignore] 
+fn blinky() -> Result {
+    const HIGH_PULSE_DURATION: Duration = Duration::from_millis(750);
+    const LOW_PULSE_DURATION: Duration = Duration::from_millis(250);
+    const POLL_DELAY: Duration = Duration::from_micros(500);
+    const PULSE_TEST_ITERATIONS: usize = 3;
+    const PULSE_DURATION_TOLERANCE: Duration = Duration::from_millis(50);
+    fn synchronize_pulse_measurement(input_pin: &mut InputPin<Assistant>) -> Result {
+        let pwm_period = LOW_PULSE_DURATION + HIGH_PULSE_DURATION;
+        let pin_synchronization_timeout = 2 * pwm_period;
+
+        wait_for_pin_with_time(Level::High, input_pin, pin_synchronization_timeout)?;
+
+        wait_for_pin_with_time(Level::Low, input_pin, pin_synchronization_timeout)?;
+
+        Ok(())
+    }
+
+    fn measure_pulse_durations(
+        input_pin: &mut InputPin<host_lib::assistant::Assistant>,
+    ) -> core::result::Result<(Duration, Duration), AssistantError> {
+        let pwm_period = LOW_PULSE_DURATION + HIGH_PULSE_DURATION;
+        // wait for pin to go high
+        let t_low = wait_for_pin_with_time(Level::High, input_pin, pwm_period)?;
+
+        // wait for pin to go low
+        let t_high = wait_for_pin_with_time(Level::Low, input_pin, pwm_period)?;
+
+        Ok((t_low, t_high))
+    }
+
+    fn wait_for_pin_with_time(
+        desired_state: Level,
+        input_pin: &mut InputPin<Assistant>,
+        max_time: Duration,
+    ) -> core::result::Result<Duration, AssistantError> {
+        let start = Instant::now();
+
+        // Iterate until we hit max time
+        while start.elapsed() < max_time {
+            // Has the pin reached the desired state?
+            let current_state = if input_pin.is_high()? {
+                Level::High
+            } else {
+                Level::Low
+            };
+
+            if desired_state == current_state {
+                // If so, return the ammount of time since we started measuring
+                return Ok(start.elapsed());
+            }
+
+            std::thread::sleep(POLL_DELAY);
+        }
+
+        panic!("TIMEOUT");
+    }
+
+    fn is_duration_within_tolerance(
+        actual: Duration,
+        expected: Duration,
+        tolerance: Duration,
+    ) -> bool {
+        (actual < (expected + tolerance)) && (actual > (expected - tolerance))
+    }
+
+    let test_stand = TestStand::new()?;
+    let mut input_pin = test_stand.assistant.create_gpio_input_pin(RED_LED_PIN)?;
+
+    synchronize_pulse_measurement(&mut input_pin)?;
+
+    for i in 0..PULSE_TEST_ITERATIONS {
+        let (t_low, t_high) = measure_pulse_durations(&mut input_pin)?;
+        println!("{}: {:?}, {:?}", i, t_low, t_high);
+
+        assert!(is_duration_within_tolerance(
+            t_low,
+            LOW_PULSE_DURATION,
+            PULSE_DURATION_TOLERANCE
+        ));
+
+        assert!(is_duration_within_tolerance(
+            t_high,
+            HIGH_PULSE_DURATION,
+            PULSE_DURATION_TOLERANCE
+        ));
+    }
+
+    Ok(())
+}
 
 #[test]
 fn assistant_should_change_and_read_noint_dyn_pin() -> Result {

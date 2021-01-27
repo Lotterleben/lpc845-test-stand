@@ -263,12 +263,12 @@ const APP: () = {
         //
         // This assumes a system clock of 12 MHz (which is the default and, as
         // of this writing, has not been changed in this program). The resulting
-        // rate is roughly 115200 baud.
+        // rate is roughly 38400 baud.
         let clock_config = {
             syscon.frg0.select_clock(frg::Clock::FRO);
             syscon.frg0.set_mult(22);
             syscon.frg0.set_div(0xFF);
-            usart::Clock::new(&syscon.frg0, 5, 16)
+            usart::Clock::new(&syscon.frg0, 17, 16)
         };
 
         // Assign pins to USART0 for RX/TX functions. On the LPC845-BRK, those
@@ -562,7 +562,7 @@ const APP: () = {
                 })
                 .expect("Error processing USART data");
 
-            host_rx
+            let _ = host_rx
                 .process_message(|message| {
                     match message {
                         HostToAssistant::SendUsart {
@@ -857,9 +857,7 @@ const APP: () = {
 
                         }
                     }
-                })
-                .expect("Error processing host request");
-            host_rx.clear_buf();
+                });
 
             // TODO: is pwm pin ever handled in reading messages?
             handle_pin_interrupt(pwm,   InputPin::Pwm,   &mut pins);
@@ -872,40 +870,15 @@ const APP: () = {
                 &mut dynamic_int_pins,
             );
             handle_pin_interrupt_noint_dynamic(dyn_noint_levels_out, &mut dynamic_noint_pins);
-
-            // We need this critical section to protect against a race
-            // conditions with the interrupt handlers. Otherwise, the following
-            // sequence of events could occur:
-            // 1. We check the queues here, they're empty.
-            // 2. New data is received, an interrupt handler adds it to a queue.
-            // 3. The interrupt handler is done, we're back here and going to
-            //    sleep.
-            //
-            // This might not be observable, if something else happens to wake
-            // us up before the test suite times out. But it could also lead to
-            // spurious test failures.
-            interrupt::free(|_| {
-                let should_sleep =
-                    !host_rx.can_process() && !target_rx.can_process() && pinint0_idle.is_ready();
-
-                if should_sleep {
-                    // On LPC84x MCUs, debug mode is not supported when
-                    // sleeping. This interferes with RTT communication. Only
-                    // sleep, if the user enables this through a compile-time
-                    // flag.
-                    #[cfg(feature = "sleep")]
-                    asm::wfi();
-                }
-            });
         }
     }
 
     #[task(binds = USART0, resources = [host_rx_int])]
     fn usart0(cx: usart0::Context) {
-        cx.resources
+        // ignore serial errors from the host
+        let _ = cx.resources
             .host_rx_int
-            .receive()
-            .expect("Error receiving from USART0");
+            .receive();
     }
 
     #[task(binds = USART1, resources = [target_rx_int])]

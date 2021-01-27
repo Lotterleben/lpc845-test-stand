@@ -34,7 +34,8 @@ impl Conn {
                 // The configuration is hardcoded for now. We might want to load
                 // this from the configuration file later.
                 &SerialPortSettings {
-                    baud_rate: 115200,
+                    baud_rate: 38_400,
+                    timeout: Duration::from_millis(10),
                     .. SerialPortSettings::default()
                 }
             )
