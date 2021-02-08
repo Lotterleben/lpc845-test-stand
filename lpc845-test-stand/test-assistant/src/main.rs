@@ -198,7 +198,7 @@ const APP: () = {
         let mut pinint0_int = pinint
             .interrupts
             .pinint0
-            .select::<PININT0_PIN>(&mut syscon.handle);
+            .select::<PININT0_PIN>(pinint0_pin.pin_info(), &mut syscon.handle);
         pinint0_int.enable_rising_edge();
         pinint0_int.enable_falling_edge();
 
@@ -229,20 +229,20 @@ const APP: () = {
         let (dyn_noint_levels_in, dyn_noint_levels_out) = PIN_TIMERINT.init();
 
         // Configure interrupt for pin connected to target's timer interrupt pin
-        let _target_timer = p.pins.pio1_1.into_input_pin(gpio.tokens.pio1_1);
+        let target_timer = p.pins.pio1_1.into_input_pin(gpio.tokens.pio1_1);
         let mut target_timer_int = pinint
             .interrupts
             .pinint1
-            .select::<PIO1_1>(&mut syscon.handle);
+            .select::<PIO1_1>(target_timer.pin_info(), &mut syscon.handle);
         target_timer_int.enable_rising_edge();
         target_timer_int.enable_falling_edge();
 
         // Configure interrupt for pin connected to target's PWM pin
-        let _pwm = p.pins.pio0_23.into_input_pin(gpio.tokens.pio0_23);
+        let pwm = p.pins.pio0_23.into_input_pin(gpio.tokens.pio0_23);
         let mut pwm_int = pinint
             .interrupts
             .pinint3
-            .select::<PIO0_23>(&mut syscon.handle);
+            .select::<PIO0_23>(pwm.pin_info(), &mut syscon.handle);
         pwm_int.enable_rising_edge();
         pwm_int.enable_falling_edge();
 
@@ -332,7 +332,7 @@ const APP: () = {
         let mut rts_int = pinint
             .interrupts
             .pinint2
-            .select::<PIO0_9>(&mut syscon.handle);
+            .select::<PIO0_9>(rts.pin_info(), &mut syscon.handle);
         rts_int.enable_rising_edge();
         rts_int.enable_falling_edge();
         let (rts_int, rts_idle) = RTS.init(rts_int, timers.mrt2);
