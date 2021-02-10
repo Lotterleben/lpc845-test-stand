@@ -31,9 +31,9 @@ impl TestStand {
         let target = match test_stand.target {
             Ok(conn) => { Some(Target::new(conn)) }
             Err(_) => {
-                println!("Could not configure target. Assuming that no target is set in `test-stand.toml`
-                          and an extranal target is being used.");
-                          None
+                // Could not configure target. Assuming that no target is set in `test-stand.toml`
+                // and an extranal target is being used
+                None
             }
         };
 
