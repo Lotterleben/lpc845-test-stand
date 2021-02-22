@@ -14,7 +14,7 @@ use heapless::{consts::U4, consts::U8, spsc::Consumer, spsc::Producer, FnvIndexM
 use lpc8xx_hal::{
     prelude::*,
     cortex_m::interrupt,
-    gpio::{self, direction::Dynamic, direction::Output, DynamicGpioPin, GpioPin},
+    gpio::{self, direction::Dynamic, direction::Output, GpioPin},
     i2c,
     init_state::Enabled,
     mrt::{
@@ -43,6 +43,7 @@ use lpc8xx_hal::{
     },
     pins::{
         DynamicPinDirection,
+        GenericPin,
         PIO0_8,
         PIO0_9,
         PIO0_20,
@@ -126,7 +127,7 @@ const APP: () = {
         pinint0_int: pin_interrupt::Int<'static, PININT0, PININT0_PIN, MRT0>,
         pinint0_idle: pin_interrupt::Idle<'static>,
 
-        dyn_noint_pins: FnvIndexMap<u8, DynamicGpioPin<Dynamic>, NUM_DYN_NOINT_PINS>,
+        dyn_noint_pins: FnvIndexMap<u8, GpioPin<GenericPin, Dynamic>, NUM_DYN_NOINT_PINS>,
         /// Level measurements for pins in dyn_noint_pins, indexed by pin id
         dyn_noint_levels_in:
             // TODO increase size
@@ -198,12 +199,13 @@ const APP: () = {
         let mut pinint0_int = pinint
             .interrupts
             .pinint0
-            .select::<PININT0_PIN>(&mut syscon.handle);
+            .select::<PININT0_PIN>(pinint0_pin.inner(), &mut syscon.handle);
         pinint0_int.enable_rising_edge();
         pinint0_int.enable_falling_edge();
 
         // initialize data structures for all dynamic pins that are *not* interrupt-controlled
-        let mut dyn_noint_pins = FnvIndexMap::<u8, DynamicGpioPin<Dynamic>, NUM_DYN_NOINT_PINS>::new();
+        let mut dyn_noint_pins =
+            FnvIndexMap::<u8, GpioPin<GenericPin, Dynamic>, NUM_DYN_NOINT_PINS>::new();
 
         // TODO add ALL the pins \o,
         let test_pin_number31: u8 = GREEN_LED_PIN_NUMBER;
@@ -212,15 +214,21 @@ const APP: () = {
         let test_dyn_pin31 = p
             .pins
             .pio1_0
-            .into_dynamic_pin_2(gpio.tokens.pio1_0, gpio::Level::Low, DynamicPinDirection::Input);
+            .into_generic_dynamic_pin(gpio.tokens.pio1_0,
+                                      gpio::Level::Low,
+                                      DynamicPinDirection::Input);
         let test_dyn_pin33 = p
             .pins
             .pio0_6
-            .into_dynamic_pin_2(gpio.tokens.pio0_6, gpio::Level::Low, DynamicPinDirection::Input);
+            .into_generic_dynamic_pin(gpio.tokens.pio0_6,
+                                      gpio::Level::Low,
+                                      DynamicPinDirection::Input);
         let test_dyn_pin6 = p
             .pins
             .pio0_21
-            .into_dynamic_pin_2(gpio.tokens.pio0_21, gpio::Level::Low, DynamicPinDirection::Input);
+            .into_generic_dynamic_pin(gpio.tokens.pio0_21,
+                                      gpio::Level::Low,
+                                      DynamicPinDirection::Input);
         let _ = dyn_noint_pins.insert(test_pin_number31, test_dyn_pin31);
         let _ = dyn_noint_pins.insert(test_pin_number33, test_dyn_pin33);
         let _ = dyn_noint_pins.insert(test_pin_number6, test_dyn_pin6);
@@ -229,20 +237,20 @@ const APP: () = {
         let (dyn_noint_levels_in, dyn_noint_levels_out) = PIN_TIMERINT.init();
 
         // Configure interrupt for pin connected to target's timer interrupt pin
-        let _target_timer = p.pins.pio1_1.into_input_pin(gpio.tokens.pio1_1);
+        let target_timer = p.pins.pio1_1.into_input_pin(gpio.tokens.pio1_1);
         let mut target_timer_int = pinint
             .interrupts
             .pinint1
-            .select::<PIO1_1>(&mut syscon.handle);
+            .select::<PIO1_1>(target_timer.inner(), &mut syscon.handle);
         target_timer_int.enable_rising_edge();
         target_timer_int.enable_falling_edge();
 
         // Configure interrupt for pin connected to target's PWM pin
-        let _pwm = p.pins.pio0_23.into_input_pin(gpio.tokens.pio0_23);
+        let pwm = p.pins.pio0_23.into_input_pin(gpio.tokens.pio0_23);
         let mut pwm_int = pinint
             .interrupts
             .pinint3
-            .select::<PIO0_23>(&mut syscon.handle);
+            .select::<PIO0_23>(pwm.inner(), &mut syscon.handle);
         pwm_int.enable_rising_edge();
         pwm_int.enable_falling_edge();
 
@@ -332,7 +340,7 @@ const APP: () = {
         let mut rts_int = pinint
             .interrupts
             .pinint2
-            .select::<PIO0_9>(&mut syscon.handle);
+            .select::<PIO0_9>(rts.inner(), &mut syscon.handle);
         rts_int.enable_rising_edge();
         rts_int.enable_falling_edge();
         let (rts_int, rts_idle) = RTS.init(rts_int, timers.mrt2);

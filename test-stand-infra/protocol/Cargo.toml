@@ -11,6 +11,5 @@ features         = ["derive"]
 
 [dependencies.lpc8xx-hal]
 # TODO revert back to upstream dep once fully dynamic pins are merged
-git      = "https://github.com/Lotterleben/lpc8xx-hal.git"
-branch   = "new_test_api"
+git      = "https://github.com/lpc-rs/lpc8xx-hal.git"
 features = ["845"]
