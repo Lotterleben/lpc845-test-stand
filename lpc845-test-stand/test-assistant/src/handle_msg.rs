@@ -1,70 +1,13 @@
-#![allow(unused_imports)]
-
-use core::marker::PhantomData;
-
-use heapless::{consts::U4, consts::U8, spsc::Consumer, spsc::Producer, FnvIndexMap};
+use heapless::{consts::U4, consts::U8, FnvIndexMap};
 use lpc8xx_hal::{
     prelude::*,
     cortex_m::interrupt,
-    gpio::{self, direction::Dynamic, direction::Output, GpioPin},
-    i2c,
-    init_state::Enabled,
-    mrt::{
-        MRT0,
-        MRT1,
-        MRT2,
-        MRT3,
-    },
-    nb::{
-        self,
-        block,
-    },
-    pac::{
-        I2C0,
-        SPI0,
-        USART0,
-        USART1,
-        USART2,
-        USART3,
-    },
-    pinint::{
-        PININT0,
-        PININT1,
-        PININT2,
-        PININT3,
-    },
-    pins::{
-        DynamicPinDirection,
-        GenericPin,
-        PIO0_8,
-        PIO0_9,
-        PIO0_20,
-        PIO0_23,
-        PIO1_1,
-    },
-    spi::{
-        self,
-        SPI,
-    },
-    syscon::{
-        IOSC,
-        frg,
-    },
-    usart::{
-        self,
-        state::{AsyncMode, SyncMode},
-    },
-    Peripherals,
+    gpio,
 };
 use rtt_target::rprintln;
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
 use lpc845_messages::{AssistantToHost, HostToAssistant, InputPin, OutputPin, DynamicPin, UsartMode, pin};
-use firmware_lib::{
-    pin_interrupt::{self, PinInterrupt},
-    timer_interrupt::{PinMeasurementEvent, TimerInterrupt},
-    usart::{RxIdle, RxInt, Tx, Usart},
-};
 use rtic::Mutex;
 use crate::{
     handle_pin_interrupt_noint_dynamic,
@@ -72,6 +15,8 @@ use crate::{
     handle_pin_interrupt_dynamic,
     PININT0_DYN_PIN,
     handle_pin_interrupt,
+    RED_LED_PIN_NUMBER,
+    CTS_PIN_NUMBER,
 };
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {

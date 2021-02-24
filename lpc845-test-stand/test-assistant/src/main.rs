@@ -6,8 +6,6 @@
 #![no_main]
 #![no_std]
 
-#![allow(unused_imports)]
-
 mod handle_msg;
 
 extern crate panic_rtt_target;
@@ -16,8 +14,6 @@ use core::marker::PhantomData;
 
 use heapless::{consts::U4, consts::U8, spsc::Consumer, spsc::Producer, FnvIndexMap};
 use lpc8xx_hal::{
-    prelude::*,
-    cortex_m::interrupt,
     gpio::{self, direction::Dynamic, direction::Output, GpioPin},
     i2c,
     init_state::Enabled,
@@ -71,7 +67,7 @@ use lpc8xx_hal::{
 use rtt_target::rprintln;
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
-use lpc845_messages::{AssistantToHost, HostToAssistant, InputPin, OutputPin, DynamicPin, UsartMode, pin};
+use lpc845_messages::{InputPin, DynamicPin, pin};
 use firmware_lib::{
     pin_interrupt::{self, PinInterrupt},
     timer_interrupt::{PinMeasurementEvent, TimerInterrupt},
