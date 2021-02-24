@@ -65,10 +65,17 @@ use firmware_lib::{
     timer_interrupt::{PinMeasurementEvent, TimerInterrupt},
     usart::{RxIdle, RxInt, Tx, Usart},
 };
+use rtic::Mutex;
+use crate::{
+    handle_pin_interrupt_noint_dynamic,
+    RTS_PIN_NUMBER,
+    handle_pin_interrupt_dynamic,
+    PININT0_DYN_PIN,
+    handle_pin_interrupt,
+};
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
-    unimplemented!()
-    /*
+
     let host_rx = cx.resources.host_rx_idle;
     let host_tx = cx.resources.host_tx;
     let target_rx = cx.resources.target_rx_idle;
@@ -86,6 +93,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let rts          = cx.resources.rts;
     let pwm          = cx.resources.pwm_idle;
     let pin_5        = cx.resources.pin_5;
+
 
     let mut pins = FnvIndexMap::<_, _, U8>::new();
     let mut dynamic_int_pins = FnvIndexMap::<_, _, U4>::new();
@@ -453,5 +461,4 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
             }
         });
     }
-    */
 }

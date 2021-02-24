@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Hanno Braun <hanno@braun-embedded.com>"]
 edition = "2018"
 
-
 [dependencies]
 cortex-m-rtic = "0.5.5"
 heapless      = "0.5.6"
@@ -19,7 +18,7 @@ path     = "../../test-stand-infra/firmware-lib"
 
 [dependencies.lpc8xx-hal]
 # TODO revert back to git dep once fully dynamic pins are merged
-#git      = "https://github.com/lpc-rs/lpc8xx-hal.git"
+# git      = "https://github.com/lpc-rs/lpc8xx-hal.git"
 path     = "../../../lpc8xx-hal"
 features = ["845m301jbd48", "845-rt"]
 
@@ -41,3 +40,6 @@ default-features = false
 # with `cargo run`.
 [profile.dev]
 opt-level = "s"
+
+[patch.crates-io]
+lpc8xx-hal = { path = "../../../lpc8xx-hal" }
