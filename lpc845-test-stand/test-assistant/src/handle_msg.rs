@@ -1,4 +1,7 @@
 use heapless::{consts::U4, consts::U8, FnvIndexMap};
+use lpc8xx_hal::pac::USART0;
+use firmware_lib::usart::Tx;
+use lpc8xx_hal::usart::state::AsyncMode;
 use lpc8xx_hal::{
     prelude::*,
     cortex_m::interrupt,
@@ -9,6 +12,7 @@ use rtt_target::rprintln;
 use lpc8xx_hal::cortex_m::asm;
 use lpc845_messages::{AssistantToHost, HostToAssistant, InputPin, OutputPin, DynamicPin, UsartMode, pin};
 use rtic::Mutex;
+use void::Void;
 use crate::{
     handle_pin_interrupt_noint_dynamic,
     RTS_PIN_NUMBER,
@@ -305,68 +309,21 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     HostToAssistant::ReadDynamicPin(
                         pin::ReadLevel { pin }
                     ) => {
-                        //rprintln!("READ DYNAMIC PIN {:?}", pin);
-
-                        let pin_number = pin.get_pin_number().unwrap();
-
-                        // TODO return bool from closure and when I've figured that out also
-                        // fix pin_is_input
-                        let mut is_dyn_noint_pin = false;
-                        dyn_noint_pins.lock(|pin_map|{
-                            is_dyn_noint_pin = pin_map.contains_key(&pin_number);
-                        });
-
-                        let result = match (pin_number, is_dyn_noint_pin) {
-                            (30, false) => {
-                                // is target timer; not dynamic yet
-                                // TODO don't hardcode this!
-                                pins
-                                    .get(&(InputPin::Blue as usize))
-                                    .map(|&(level, period_ms)| {
-                                        pin::ReadLevelResult {
-                                            pin,
-                                            level,
-                                            period_ms,
-                                        }
-                                    })
-                            }
-                            (pin_number, true) => {
-                                dynamic_noint_pins
-                                .get(&(pin_number as usize))
-                                .map(|gpio_level| {
-                                    pin::ReadLevelResult {
-                                        pin,
-                                        level: pin::Level::from(*gpio_level),
-                                        period_ms: None,
-                                    }
-                                })
-                            }
-                            (pin_number, false) => {
-                                dynamic_int_pins
-                                .get(&(pin_number as usize))
-                                .map(|&(level, period_ms)| {
-                                    pin::ReadLevelResult {
-                                        pin,
-                                        level,
-                                        period_ms,
-                                    }
-                                })
-                            }
-                        };
-
-                        host_tx
-                            .send_message(
-                                &AssistantToHost::ReadPinResultDynamic(result),
-                                &mut buf,
-                            )
-                            .unwrap();
-
-                        Ok(())
-
+                        // AJM!
+                        hdl_read_dynamic_pin(
+                            pin,
+                            dyn_noint_pins,
+                            &mut dynamic_noint_pins,
+                            &mut pins,
+                            host_tx,
+                            &mut buf,
+                            &mut dynamic_int_pins,
+                        )
                     }
                 }
             })
             .expect("Error processing host request");
+
         host_rx.clear_buf();
 
         // TODO: is pwm pin ever handled in reading messages?
@@ -406,4 +363,73 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
             }
         });
     }
+}
+
+fn hdl_read_dynamic_pin(
+    pin: DynamicPin,
+    dyn_noint_pins: crate::resources::dyn_noint_pins,
+    // TODO(LS): What's up with this duplicate structure?
+    // Lotte says: one is pins, one is events of pins
+    // TODO(LS): Better naming
+    dynamic_noint_pins: &mut FnvIndexMap<usize, gpio::Level, U4>,
+    pins: &mut FnvIndexMap::<usize, (pin::Level, Option<u32>), U8>,
+    host_tx: &mut Tx<USART0, AsyncMode>,
+    buf: &mut [u8],
+    dynamic_int_pins: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
+) -> Result<(), Void> {
+    let pin_number = pin.get_pin_number().unwrap();
+
+    // TODO return bool from closure and when I've figured that out also
+    // fix pin_is_input
+    let mut is_dyn_noint_pin = false;
+    dyn_noint_pins.lock(|pin_map|{
+        is_dyn_noint_pin = pin_map.contains_key(&pin_number);
+    });
+
+    let result = match (pin_number, is_dyn_noint_pin) {
+        (30, false) => {
+            // is target timer; not dynamic yet
+            // TODO don't hardcode this!
+            pins
+                .get(&(InputPin::Blue as usize))
+                .map(|&(level, period_ms)| {
+                    pin::ReadLevelResult {
+                        pin,
+                        level,
+                        period_ms,
+                    }
+                })
+        }
+        (pin_number, true) => {
+            dynamic_noint_pins
+            .get(&(pin_number as usize))
+            .map(|gpio_level| {
+                pin::ReadLevelResult {
+                    pin,
+                    level: pin::Level::from(*gpio_level),
+                    period_ms: None,
+                }
+            })
+        }
+        (pin_number, false) => {
+            dynamic_int_pins
+            .get(&(pin_number as usize))
+            .map(|&(level, period_ms)| {
+                pin::ReadLevelResult {
+                    pin,
+                    level,
+                    period_ms,
+                }
+            })
+        }
+    };
+
+    host_tx
+        .send_message(
+            &AssistantToHost::ReadPinResultDynamic(result),
+            &mut buf,
+        )
+        .unwrap();
+
+    Ok(())
 }
