@@ -884,9 +884,19 @@ const APP: () = {
     #[task(binds = USART0, resources = [host_rx_int])]
     fn usart0(cx: usart0::Context) {
         // ignore serial errors from the host
-        let _ = cx.resources
+        let res = cx.resources
             .host_rx_int
             .receive();
+
+        if res.is_err() {
+            // reset uart OVERRUN flag so we can recover
+            cx.resources
+              .host_rx_int
+              .usart
+              // note: OVERRUN is reset as a side effect of `is_flag_set()`
+              // (this is a little hacky)
+              .is_flag_set(usart::Flag::OVERRUN);
+        }
     }
 
     #[task(binds = USART1, resources = [target_rx_int])]
