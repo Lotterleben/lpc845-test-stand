@@ -16,6 +16,8 @@ use rtic::Mutex;
 use rtt_target::rprintln;
 use void::Void;
 
+const TARGET_TIMER_PIN_NUMBER : u8 = 30;
+
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
     let host_tx = cx.resources.host_tx;
@@ -194,7 +196,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                                 unreachable!()
                             }
                             RTS_PIN_NUMBER => rts.switch_to_input(),
-                            30 => {
+                            TARGET_TIMER_PIN_NUMBER => {
                                 // Ignore for now, we've hardcoded this pin as input
                                 // TODO fix this
                             }
@@ -330,9 +332,6 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
 fn hdl_read_dynamic_pin(
     pin: DynamicPin,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
-    // TODO(LS): What's up with this duplicate structure?
-    // Lotte says: one is pins, one is events of pins
-    // TODO(LS): Better naming
     dynamic_noint_pin_levels: &mut FnvIndexMap<usize, gpio::Level, U4>,
     fixed_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U8>,
     host_tx: &mut Tx<USART0, AsyncMode>,
@@ -341,48 +340,41 @@ fn hdl_read_dynamic_pin(
 ) -> Result<(), Void> {
     let pin_number = pin.get_pin_number().unwrap();
 
-    // TODO return bool from closure and when I've figured that out also
-    // fix pin_is_input
-    let mut is_dyn_noint_pin = false;
-    dyn_noint_pins.lock(|pin_map| {
-        is_dyn_noint_pin = pin_map.contains_key(&pin_number);
+    // TODO(LSS) if thsi keeps reappearing make an enum instead of bool
+    let is_dyn_noint_pin = dyn_noint_pins.lock(|pin_map| {
+        pin_map.contains_key(&pin_number)
     });
 
-    let result = match (pin_number, is_dyn_noint_pin) {
-        (30, false) => {
+    let (level, period_ms) = match (pin_number, is_dyn_noint_pin) {
+        // TODO(LSS) this is a fixed pin; we should not get change dynamic pin messages about this at all
+        (TARGET_TIMER_PIN_NUMBER, false) => {
             // is target timer; not dynamic yet
-            // TODO don't hardcode this!
-            fixed_pin_levels
-                .get(&(InputPin::Blue as usize))
-                .map(|&(level, period_ms)| pin::ReadLevelResult {
-                    pin,
-                    level,
-                    period_ms,
-                })
+            *(fixed_pin_levels
+                .get(&(InputPin::Blue as usize)).unwrap())
         }
         (pin_number, true) => {
-            dynamic_noint_pin_levels
+            let level = dynamic_noint_pin_levels
                 .get(&(pin_number as usize))
-                .map(|gpio_level| pin::ReadLevelResult {
-                    pin,
-                    level: pin::Level::from(*gpio_level),
-                    period_ms: None,
-                })
+                .map(|gpio_level| pin::Level::from(*gpio_level)).unwrap();
+
+            (level, None)
         }
         (pin_number, false) => {
-            dynamic_int_pin_levels
-                .get(&(pin_number as usize))
-                .map(|&(level, period_ms)| pin::ReadLevelResult {
-                    pin,
-                    level,
-                    period_ms,
-                })
+            *(dynamic_int_pin_levels
+                .get(&(pin_number as usize)).unwrap())
         }
     };
 
+    let read_level_result = Some(pin::ReadLevelResult {
+        pin,
+        level,
+        period_ms,
+    });
+
     host_tx
-        .send_message(&AssistantToHost::ReadPinResultDynamic(result), buf)
+        .send_message(&AssistantToHost::ReadPinResultDynamic(read_level_result), buf)
         .unwrap();
+
 
     Ok(())
 }
