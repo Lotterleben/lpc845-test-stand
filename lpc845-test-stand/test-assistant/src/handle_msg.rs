@@ -44,9 +44,9 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let pin_5        = cx.resources.pin_5;
 
 
-    let mut pins = FnvIndexMap::<_, _, U8>::new();
-    let mut dynamic_int_pins = FnvIndexMap::<_, _, U4>::new();
-    let mut dynamic_noint_pins = FnvIndexMap::<_, gpio::Level, U4>::new();
+    let mut fixed_pin_levels = FnvIndexMap::<_, _, U8>::new();
+    let mut dynamic_int_pin_levels = FnvIndexMap::<_, _, U4>::new();
+    let mut dynamic_noint_pin_levels = FnvIndexMap::<_, gpio::Level, U4>::new();
 
     let mut buf = [0; 256];
 
@@ -179,7 +179,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     HostToAssistant::ReadPin(
                         pin::ReadLevel { pin }
                     ) => {
-                        let result = pins.get(&(pin as usize))
+                        let result = fixed_pin_levels.get(&(pin as usize))
                             .map(|&(level, period_ms)| {
                                 pin::ReadLevelResult {
                                     pin,
@@ -215,7 +215,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                                     true => pin::Level::High,
                                     false => pin::Level::Low,
                                 };
-                                dynamic_int_pins.insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
+                                dynamic_int_pin_levels.insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
                                                 .unwrap();
                             },
                             CTS_PIN_NUMBER => {
@@ -272,7 +272,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                                     true => pin::Level::High,
                                     false => pin::Level::Low,
                                 };
-                                dynamic_int_pins.insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
+                                dynamic_int_pin_levels.insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
                                                 .unwrap();
                             },
                             CTS_PIN_NUMBER => cts.switch_to_output(gpio_level),
@@ -313,11 +313,11 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                         hdl_read_dynamic_pin(
                             pin,
                             dyn_noint_pins,
-                            &mut dynamic_noint_pins,
-                            &mut pins,
+                            &mut dynamic_noint_pin_levels,
+                            &mut fixed_pin_levels,
                             host_tx,
                             &mut buf,
-                            &mut dynamic_int_pins,
+                            &mut dynamic_int_pin_levels,
                         )
                     }
                 }
@@ -327,16 +327,16 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
         host_rx.clear_buf();
 
         // TODO: is pwm pin ever handled in reading messages?
-        handle_pin_interrupt(pwm,   InputPin::Pwm,   &mut pins);
-        handle_pin_interrupt(blue_idle, InputPin::Blue, &mut pins);
+        handle_pin_interrupt(pwm,   InputPin::Pwm,   &mut fixed_pin_levels);
+        handle_pin_interrupt(blue_idle, InputPin::Blue, &mut fixed_pin_levels);
 
-        handle_pin_interrupt_dynamic(pinint0_idle, PININT0_DYN_PIN, &mut dynamic_int_pins);
+        handle_pin_interrupt_dynamic(pinint0_idle, PININT0_DYN_PIN, &mut dynamic_int_pin_levels);
         handle_pin_interrupt_dynamic(
             target_rts_idle,
             DynamicPin::GPIO(RTS_PIN_NUMBER),
-            &mut dynamic_int_pins,
+            &mut dynamic_int_pin_levels,
         );
-        handle_pin_interrupt_noint_dynamic(dyn_noint_levels_out, &mut dynamic_noint_pins);
+        handle_pin_interrupt_noint_dynamic(dyn_noint_levels_out, &mut dynamic_noint_pin_levels);
 
         // We need this critical section to protect against a race
         // conditions with the interrupt handlers. Otherwise, the following
@@ -371,11 +371,11 @@ fn hdl_read_dynamic_pin(
     // TODO(LS): What's up with this duplicate structure?
     // Lotte says: one is pins, one is events of pins
     // TODO(LS): Better naming
-    dynamic_noint_pins: &mut FnvIndexMap<usize, gpio::Level, U4>,
-    pins: &mut FnvIndexMap::<usize, (pin::Level, Option<u32>), U8>,
+    dynamic_noint_pin_levels: &mut FnvIndexMap<usize, gpio::Level, U4>,
+    fixed_pin_levels: &mut FnvIndexMap::<usize, (pin::Level, Option<u32>), U8>,
     host_tx: &mut Tx<USART0, AsyncMode>,
     buf: &mut [u8],
-    dynamic_int_pins: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
+    dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
 ) -> Result<(), Void> {
     let pin_number = pin.get_pin_number().unwrap();
 
@@ -390,7 +390,7 @@ fn hdl_read_dynamic_pin(
         (30, false) => {
             // is target timer; not dynamic yet
             // TODO don't hardcode this!
-            pins
+            fixed_pin_levels
                 .get(&(InputPin::Blue as usize))
                 .map(|&(level, period_ms)| {
                     pin::ReadLevelResult {
@@ -401,7 +401,7 @@ fn hdl_read_dynamic_pin(
                 })
         }
         (pin_number, true) => {
-            dynamic_noint_pins
+            dynamic_noint_pin_levels
             .get(&(pin_number as usize))
             .map(|gpio_level| {
                 pin::ReadLevelResult {
@@ -412,7 +412,7 @@ fn hdl_read_dynamic_pin(
             })
         }
         (pin_number, false) => {
-            dynamic_int_pins
+            dynamic_int_pin_levels
             .get(&(pin_number as usize))
             .map(|&(level, period_ms)| {
                 pin::ReadLevelResult {
