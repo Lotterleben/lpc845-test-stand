@@ -312,7 +312,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                         // AJM!
                         hdl_read_dynamic_pin(
                             pin,
-                            dyn_noint_pins,
+                            &mut dyn_noint_pins,
                             &mut dynamic_noint_pin_levels,
                             &mut fixed_pin_levels,
                             host_tx,
@@ -367,7 +367,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
 
 fn hdl_read_dynamic_pin(
     pin: DynamicPin,
-    dyn_noint_pins: crate::resources::dyn_noint_pins,
+    dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
     // TODO(LS): What's up with this duplicate structure?
     // Lotte says: one is pins, one is events of pins
     // TODO(LS): Better naming
@@ -427,7 +427,7 @@ fn hdl_read_dynamic_pin(
     host_tx
         .send_message(
             &AssistantToHost::ReadPinResultDynamic(result),
-            &mut buf,
+            buf,
         )
         .unwrap();
 
