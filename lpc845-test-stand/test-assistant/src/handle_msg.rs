@@ -16,7 +16,7 @@ use rtic::Mutex;
 use rtt_target::rprintln;
 use void::Void;
 
-const TARGET_TIMER_PIN_NUMBER : u8 = 30;
+const TARGET_TIMER_PIN_NUMBER: u8 = 30;
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
@@ -341,40 +341,37 @@ fn hdl_read_dynamic_pin(
     let pin_number = pin.get_pin_number().unwrap();
 
     // TODO(LSS) if thsi keeps reappearing make an enum instead of bool
-    let is_dyn_noint_pin = dyn_noint_pins.lock(|pin_map| {
-        pin_map.contains_key(&pin_number)
-    });
+    let is_dyn_noint_pin = dyn_noint_pins.lock(|pin_map| pin_map.contains_key(&pin_number));
 
-    let (level, period_ms) = match (pin_number, is_dyn_noint_pin) {
+    let result = match (pin_number, is_dyn_noint_pin) {
         // TODO(LSS) this is a fixed pin; we should not get change dynamic pin messages about this at all
         (TARGET_TIMER_PIN_NUMBER, false) => {
             // is target timer; not dynamic yet
-            *(fixed_pin_levels
-                .get(&(InputPin::Blue as usize)).unwrap())
+            fixed_pin_levels
+                .get(&(InputPin::Blue as usize))
+                .map(|maybe_tuple| *maybe_tuple)
         }
-        (pin_number, true) => {
-            let level = dynamic_noint_pin_levels
-                .get(&(pin_number as usize))
-                .map(|gpio_level| pin::Level::from(*gpio_level)).unwrap();
-
-            (level, None)
-        }
-        (pin_number, false) => {
-            *(dynamic_int_pin_levels
-                .get(&(pin_number as usize)).unwrap())
-        }
+        (pin_number, true) => dynamic_noint_pin_levels
+            .get(&(pin_number as usize))
+            .map(|gpio_level| (pin::Level::from(*gpio_level), None)),
+        (pin_number, false) => dynamic_int_pin_levels
+            .get(&(pin_number as usize))
+            .map(|maybe_tuple| *maybe_tuple),
     };
 
-    let read_level_result = Some(pin::ReadLevelResult {
+    let read_level_result = result.map(|(level, period_ms)| pin::ReadLevelResult {
         pin,
         level,
         period_ms,
     });
 
+    // TODO(LSS) add enum, bubble error up
     host_tx
-        .send_message(&AssistantToHost::ReadPinResultDynamic(read_level_result), buf)
+        .send_message(
+            &AssistantToHost::ReadPinResultDynamic(read_level_result),
+            buf,
+        )
         .unwrap();
-
 
     Ok(())
 }
