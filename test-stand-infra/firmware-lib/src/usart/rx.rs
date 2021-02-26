@@ -126,7 +126,7 @@ impl RxIdle<'_> {
             }
 
             // ignore buffer full error. we know this is not a valid message but wait until a frame
-            // delimiter for synchronization's sake instead of early returning an error 
+            // delimiter for synchronization's sake instead of early returning an error
             let _ = self.buf.push(b);
 
             // Requests are COBS-encoded, so we know that `0` means we
@@ -154,7 +154,7 @@ pub enum ReceiveError {
     QueueFull,
 
     /// An error was returned by the wrapped USART receiver
-    Usart(usart::Error),
+    Usart(usart::Error<u8>),
 }
 
 /// Error processing received USART data

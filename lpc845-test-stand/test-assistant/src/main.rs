@@ -13,7 +13,6 @@ use core::marker::PhantomData;
 use heapless::{consts::U4, consts::U8, spsc::Consumer, spsc::Producer, FnvIndexMap};
 use lpc8xx_hal::{
     prelude::*,
-    cortex_m::interrupt,
     gpio::{self, direction::Dynamic, direction::Output, GpioPin},
     i2c,
     init_state::Enabled,
@@ -884,19 +883,9 @@ const APP: () = {
     #[task(binds = USART0, resources = [host_rx_int])]
     fn usart0(cx: usart0::Context) {
         // ignore serial errors from the host
-        let res = cx.resources
+        let _ = cx.resources
             .host_rx_int
             .receive();
-
-        if res.is_err() {
-            // reset uart OVERRUN flag so we can recover
-            cx.resources
-              .host_rx_int
-              .usart
-              // note: OVERRUN is reset as a side effect of `is_flag_set()`
-              // (this is a little hacky)
-              .is_flag_set(usart::Flag::OVERRUN);
-        }
     }
 
     #[task(binds = USART1, resources = [target_rx_int])]
