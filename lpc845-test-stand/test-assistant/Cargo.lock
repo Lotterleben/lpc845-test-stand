@@ -339,7 +339,7 @@ dependencies = [
 [[package]]
 name = "lpc8xx-hal"
 version = "0.8.2"
-source = "git+https://github.com/lpc-rs/lpc8xx-hal.git#8ce3ce025855e7090d04297eddfcf491ecc7dbfe"
+source = "git+https://github.com/lpc-rs/lpc8xx-hal.git#a2a2046252329f78dcea943fa98b9af2d344474a"
 dependencies = [
  "cortex-m 0.6.7",
  "cortex-m-rt",
