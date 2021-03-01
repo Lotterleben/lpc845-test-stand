@@ -1,6 +1,9 @@
+use core::panic;
+
 use crate::{
     handle_pin_interrupt, handle_pin_interrupt_dynamic, handle_pin_interrupt_noint_dynamic,
     CTS_PIN_NUMBER, PININT0_DYN_PIN, RED_LED_PIN_NUMBER, RTS_PIN_NUMBER,
+    TARGET_TIMER_PIN_NUMBER, FIXED_DIRECTION_PINS,
 };
 use firmware_lib::usart::Tx;
 use heapless::{consts::U4, consts::U8, FnvIndexMap};
@@ -14,9 +17,6 @@ use lpc8xx_hal::usart::state::AsyncMode;
 use lpc8xx_hal::{cortex_m::interrupt, gpio, prelude::*};
 use rtic::Mutex;
 use rtt_target::rprintln;
-use void::Void;
-
-const TARGET_TIMER_PIN_NUMBER: u8 = 30;
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
@@ -274,15 +274,18 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     }
                     HostToAssistant::ReadDynamicPin(pin::ReadLevel { pin }) => {
                         // AJM!
-                        hdl_read_dynamic_pin(
+                        if hdl_read_dynamic_pin(
                             pin,
                             &mut dyn_noint_pins,
                             &mut dynamic_noint_pin_levels,
-                            &mut fixed_pin_levels,
                             host_tx,
                             &mut buf,
                             &mut dynamic_int_pin_levels,
-                        )
+                        ).is_err() {
+                            panic!();
+                        }
+
+                        Ok(())
                     }
                 }
             })
@@ -329,34 +332,37 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     }
 }
 
+// TODO(LSS) find a good home, maybe in test-stand-infra
+#[derive(Debug)]
+enum PinReadError {
+    NotDynamicPin,
+}
+
 fn hdl_read_dynamic_pin(
     pin: DynamicPin,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
     dynamic_noint_pin_levels: &mut FnvIndexMap<usize, gpio::Level, U4>,
-    fixed_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U8>,
     host_tx: &mut Tx<USART0, AsyncMode>,
     buf: &mut [u8],
     dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
-) -> Result<(), Void> {
+) -> Result<(), PinReadError> {
     let pin_number = pin.get_pin_number().unwrap();
+
+    if !FIXED_DIRECTION_PINS.contains(&pin_number) {
+        return Err(PinReadError::NotDynamicPin);
+    }
 
     // TODO(LSS) if thsi keeps reappearing make an enum instead of bool
     let is_dyn_noint_pin = dyn_noint_pins.lock(|pin_map| pin_map.contains_key(&pin_number));
 
-    let result = match (pin_number, is_dyn_noint_pin) {
-        // TODO(LSS) this is a fixed pin; we should not get change dynamic pin messages about this at all
-        (TARGET_TIMER_PIN_NUMBER, false) => {
-            // is target timer; not dynamic yet
-            fixed_pin_levels
-                .get(&(InputPin::Blue as usize))
-                .map(|maybe_tuple| *maybe_tuple)
-        }
-        (pin_number, true) => dynamic_noint_pin_levels
+    let result = if is_dyn_noint_pin {
+        dynamic_noint_pin_levels
             .get(&(pin_number as usize))
-            .map(|gpio_level| (pin::Level::from(*gpio_level), None)),
-        (pin_number, false) => dynamic_int_pin_levels
+            .map(|gpio_level| (pin::Level::from(*gpio_level), None))
+    } else {
+        dynamic_int_pin_levels
             .get(&(pin_number as usize))
-            .map(|maybe_tuple| *maybe_tuple),
+            .map(|maybe_tuple| *maybe_tuple)
     };
 
     let read_level_result = result.map(|(level, period_ms)| pin::ReadLevelResult {

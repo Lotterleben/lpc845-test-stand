@@ -79,6 +79,10 @@ impl AssistantInterface<Assistant> {
 
     // TODO: create set_pin_5_high() / set_pin_5_low() wrappers somewhere
 
+    // TODO(LSS) design decision: do I want to expose the concept of dynamic/fixed direction
+    // pins to the user? => nope I don't think so but internally handle our
+    // special pin cases by converting to Pin<Input> **in here** in test-ish helpers
+
     /// Retrieve an InputPin instance that we can use to (re)configure the test-assistant's pin with
     /// number `pin_number` at test runtime.
     pub fn create_gpio_input_pin(

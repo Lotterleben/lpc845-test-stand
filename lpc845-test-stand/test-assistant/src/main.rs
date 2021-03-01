@@ -67,7 +67,7 @@ use lpc8xx_hal::{
 use rtt_target::rprintln;
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
-use lpc845_messages::{InputPin, DynamicPin, pin};
+use lpc845_messages::{DynamicPin, InputPin, PinNumber, pin};
 use firmware_lib::{
     pin_interrupt::{self, PinInterrupt},
     timer_interrupt::{PinMeasurementEvent, TimerInterrupt},
@@ -84,12 +84,19 @@ use firmware_lib::{
 // TODO: value picked for human reada/debuggability; adjust
 const TIMER_INT_PERIOD_MS: u32 = 200 * 6000; // fires every 200 milliseconds
 
+// dyn direction pin numbers
 // TODO find a place to share them with t-s and t-t?
 /// some commonly used pin numbers
 const RTS_PIN_NUMBER: u8 = 18;
 const CTS_PIN_NUMBER: u8 = 19;
 const RED_LED_PIN_NUMBER: u8 = 29;
 const GREEN_LED_PIN_NUMBER : u8 = 31;
+
+
+// fixed direction pin numbers
+const TARGET_TIMER_PIN_NUMBER: u8 = 30;
+
+const FIXED_DIRECTION_PINS: &[PinNumber] = &[TARGET_TIMER_PIN_NUMBER];
 
 /// The maxiumum number of GPIO pins that are direction-changeable at runtime and read
 /// periodically (i.e. do not trigger any interrupts)
