@@ -17,6 +17,7 @@ use lpc8xx_hal::usart::state::AsyncMode;
 use lpc8xx_hal::{cortex_m::interrupt, gpio, prelude::*};
 use rtic::Mutex;
 use rtt_target::rprintln;
+use void::Void;
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
@@ -274,24 +275,31 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     }
                     HostToAssistant::ReadDynamicPin(pin::ReadLevel { pin }) => {
                         // AJM!
-                        if hdl_read_dynamic_pin(
+
+                        match hdl_read_dynamic_pin(
                             pin,
                             &mut dyn_noint_pins,
                             &mut dynamic_noint_pin_levels,
                             host_tx,
                             &mut buf,
                             &mut dynamic_int_pin_levels,
-                        ).is_err() {
-                            // TODO(LSS) what do I do with errors
-                            // how do I tell the host that something went wrong
-                            // -> disable all interrupts and wait fro signals from the host?
-                            // -> reboot?
-                            // -> let the host know that something went wrong!
-                            // -> maybe it's time to implement the syc that jorge asked for now :D
-                            panic!();
+                        ) {
+                            Ok(_) => Ok(()),
+                            Err(err) => {
+                                // This will currently cause a panic anyway due to the expect()
+                                // at the end of this match- print a hint to indicate what the cause was
+                                rprintln!("Reading dynamic pin level failed: {:?}", err);
+                                // TODO(LSS) why do I get
+                                // expected value, found enum `Void`
+                                // or
+                                // expected enum `Void`, found enum `PinReadError`
+                                // here? (I think I understand where the missing
+                                // Void vaue is coming from but why is rustc expecting void in the
+                                // first place?)
+                                //Err(err)
+                                panic!() // TODO(LSS) fix this, s.a.)
+                            }
                         }
-
-                        Ok(())
                     }
                 }
             })
