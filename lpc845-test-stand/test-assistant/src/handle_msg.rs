@@ -13,12 +13,12 @@ use lpc845_messages::{
 };
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
-use lpc8xx_hal::pac::USART0;
+use lpc8xx_hal::{gpio::direction, pac::USART0};
 use lpc8xx_hal::usart::state::AsyncMode;
 use lpc8xx_hal::{cortex_m::interrupt, gpio, prelude::*};
 use rtic::Mutex;
 use rtt_target::rprintln;
-use void::Void;
+//use void::Void;
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
@@ -179,6 +179,9 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     }) => {
                         //rprintln!("{:?} is Input", pin);
 
+                        // TODO(LSS) -> AJM! I'd like to learn how to untagle and merge this with
+                        // the match arm below this. problem is the fixed pins
+
                         match pin.get_pin_number().unwrap() {
                             RED_LED_PIN_NUMBER => {
                                 pinint0_pin.switch_to_input();
@@ -222,47 +225,10 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                         direction: pin::Direction::Output,
                         level: Some(level),
                     }) => {
-                        //rprintln!("{:?} is Output | Level {:?}", pin, level);
-                        // convert from lpc8xx_hal::gpio::Level to protocol::pin::Level
-                        // TODO use into() here
-                        let gpio_level = match level {
-                            pin::Level::High => gpio::Level::High,
-                            pin::Level::Low => gpio::Level::Low,
-                        };
-
-                        // todo nicer and more generic once we start enabling ALL the pins
-                        match pin.get_pin_number().unwrap() {
-                            RED_LED_PIN_NUMBER => {
-                                pinint0_pin.switch_to_output(gpio_level);
-                                // inintialize interruptable pins so that a status read is
-                                // possible before the first level change
-                                // (TODO is this a separate PR candidate?)
-                                let pinint0_level = match pinint0_pin.is_high() {
-                                    true => pin::Level::High,
-                                    false => pin::Level::Low,
-                                };
-                                dynamic_int_pin_levels
-                                    .insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
-                                    .unwrap();
-                            }
-                            CTS_PIN_NUMBER => cts.switch_to_output(gpio_level),
-                            RTS_PIN_NUMBER => {
-                                // TODO proper error handling
-                                rprintln!("RTS pin is never Output");
-                                unreachable!()
-                            }
-                            pin_number => {
-                                dyn_noint_pins.lock(|pin_map| {
-                                    if pin_map.contains_key(&pin_number) {
-                                        // this is a dynamic non-interrupt pin, set its direction
-                                        let pin = pin_map.get_mut(&pin_number).unwrap();
-                                        pin.switch_to_output(gpio_level);
-                                    } else {
-                                        rprintln!("unsupported pin")
-                                    }
-                                });
-                            }
-                        };
+                        let _ = handle_set_direction(pin, pin::Direction::Output, level, pinint0_pin, cts,
+                                             &mut dynamic_int_pin_levels,
+                                             &mut dyn_noint_pins);
+                        // TODO(LSS) handle err
                         Ok(())
                     }
                     HostToAssistant::SetDirection(pin::SetDirection {
@@ -276,8 +242,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     }
                     HostToAssistant::ReadDynamicPin(pin::ReadLevel { pin }) => {
                         // AJM!
-
-                        match hdl_read_dynamic_pin(
+                        match handle_read_dynamic_pin(
                             pin,
                             &mut dyn_noint_pins,
                             &mut dynamic_noint_pin_levels,
@@ -347,7 +312,70 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     }
 }
 
-fn hdl_read_dynamic_pin(
+
+// TODO(LSS) clean this up
+use lpc8xx_hal::gpio::direction::Dynamic;
+use lpc8xx_hal::gpio::GpioPin;
+use crate::{PININT0_PIN, PIO0_8};
+
+fn handle_set_direction(
+    pin: DynamicPin,
+    direction: pin::Direction,
+    // TODO LSS move this conversion to centrl place. should this really happen here?
+    level: crate::pin::Level,
+    pinint0_pin: &mut GpioPin<PININT0_PIN, Dynamic>,
+    // TODO(LSS) remove this once cts is single direction again
+    cts: &mut GpioPin<PIO0_8, Dynamic>,
+    dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
+    dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
+) -> Result<(), PinReadError> {
+    // TODO(LSS) move input switch here as well
+
+    // convert from lpc8xx_hal::gpio::Level to protocol::pin::Level
+    // TODO use into() here
+    let gpio_level = match level {
+        pin::Level::High => gpio::Level::High,
+        pin::Level::Low => gpio::Level::Low,
+    };
+
+    // todo nicer and more generic once we start enabling ALL the pins
+    match pin.get_pin_number().unwrap() {
+        RED_LED_PIN_NUMBER => {
+            pinint0_pin.switch_to_output(gpio_level);
+            // inintialize interruptable pins so that a status read is
+            // possible before the first level change
+            // (TODO is this a separate PR candidate?)
+            let pinint0_level = match pinint0_pin.is_high() {
+                true => pin::Level::High,
+                false => pin::Level::Low,
+            };
+            dynamic_int_pin_levels
+                .insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
+                .unwrap();
+        }
+        CTS_PIN_NUMBER => cts.switch_to_output(gpio_level),
+        RTS_PIN_NUMBER => {
+            // TODO proper error handling
+            rprintln!("RTS pin is never Output");
+            unreachable!()
+        }
+        pin_number => {
+            dyn_noint_pins.lock(|pin_map| {
+                if pin_map.contains_key(&pin_number) {
+                    // this is a dynamic non-interrupt pin, set its direction
+                    let pin = pin_map.get_mut(&pin_number).unwrap();
+                    pin.switch_to_output(gpio_level);
+                } else {
+                    rprintln!("unsupported pin")
+                }
+            });
+        }
+    };
+
+    Ok(())
+}
+
+fn handle_read_dynamic_pin(
     pin: DynamicPin,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
     dynamic_noint_pin_levels: &mut FnvIndexMap<usize, gpio::Level, U4>,
