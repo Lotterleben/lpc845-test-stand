@@ -28,6 +28,9 @@ use crate::{
 /// some commonly used pin numbers
 const RTS_PIN_NUMBER: PinNumber = 18;
 const CTS_PIN_NUMBER: PinNumber = 19;
+const TARGET_TIMER_PIN_NUMBER: PinNumber = 30;
+
+
 
 // TODO tokenize instead
 pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [6, 29, 31, 33];
@@ -639,19 +642,18 @@ impl Assistant {
     ) -> Result<GpioPeriodMeasurement, AssistantError> {
         assert!(samples > 0);
 
-        let target_timer_pin_number = 30;
         let mut measurement: Option<GpioPeriodMeasurement> = None;
 
         let (mut state, _) = self
             .pins
-            .get_mut(&target_timer_pin_number)
+            .get_mut(&TARGET_TIMER_PIN_NUMBER)
             .unwrap()
             .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
 
         for _ in 0..samples {
             let (new_state, period_ms) =
                 self.pins
-                    .get_mut(&target_timer_pin_number)
+                    .get_mut(&TARGET_TIMER_PIN_NUMBER)
                     .unwrap()
                     .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
             print!("{:?}, {:?}\n", new_state, period_ms);

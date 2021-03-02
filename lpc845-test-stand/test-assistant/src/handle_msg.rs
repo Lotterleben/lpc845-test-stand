@@ -9,6 +9,7 @@ use firmware_lib::usart::Tx;
 use heapless::{consts::U4, consts::U8, FnvIndexMap};
 use lpc845_messages::{
     pin, AssistantToHost, DynamicPin, HostToAssistant, InputPin, OutputPin, UsartMode,
+    PinNumber,
 };
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
@@ -346,12 +347,6 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     }
 }
 
-// TODO(LSS) find a good home, maybe in test-stand-infra
-#[derive(Debug)]
-enum PinReadError {
-    NotDynamicPin,
-}
-
 fn hdl_read_dynamic_pin(
     pin: DynamicPin,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
@@ -363,7 +358,7 @@ fn hdl_read_dynamic_pin(
     let pin_number = pin.get_pin_number().unwrap();
 
     if !FIXED_DIRECTION_PINS.contains(&pin_number) {
-        return Err(PinReadError::NotDynamicPin);
+        return Err(PinReadError::NotDynamicPin(pin_number));
     }
 
     // TODO(LSS) if thsi keeps reappearing make an enum instead of bool
@@ -394,4 +389,9 @@ fn hdl_read_dynamic_pin(
         .unwrap();
 
     Ok(())
+}
+
+#[derive(Debug)]
+enum PinReadError {
+    NotDynamicPin(PinNumber),
 }
