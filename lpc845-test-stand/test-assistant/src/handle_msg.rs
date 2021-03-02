@@ -282,6 +282,12 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                             &mut buf,
                             &mut dynamic_int_pin_levels,
                         ).is_err() {
+                            // TODO(LSS) what do I do with errors
+                            // how do I tell the host that something went wrong
+                            // -> disable all interrupts and wait fro signals from the host?
+                            // -> reboot?
+                            // -> let the host know that something went wrong!
+                            // -> maybe it's time to implement the syc that jorge asked for now :D
                             panic!();
                         }
 
