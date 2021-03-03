@@ -78,6 +78,15 @@ impl From<gpio::Level> for Level {
     }
 }
 
+impl From<Level> for gpio::Level {
+    fn from(level: Level) -> Self {
+        match level {
+            Level::High => gpio::Level::High,
+            Level::Low => gpio::Level::Low,
+        }
+    }
+}
+
 /// Represents the direction of a pin
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub enum Direction {

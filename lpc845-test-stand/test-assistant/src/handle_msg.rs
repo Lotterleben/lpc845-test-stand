@@ -225,7 +225,7 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                         direction: pin::Direction::Output,
                         level: Some(level),
                     }) => {
-                        let _ = handle_set_direction(pin, pin::Direction::Output, level, pinint0_pin, cts,
+                        let _ = handle_set_direction_dynamic(pin, pin::Direction::Output, level, pinint0_pin, cts,
                                              &mut dynamic_int_pin_levels,
                                              &mut dyn_noint_pins);
                         // TODO(LSS) handle err
@@ -318,7 +318,7 @@ use lpc8xx_hal::gpio::direction::Dynamic;
 use lpc8xx_hal::gpio::GpioPin;
 use crate::{PININT0_PIN, PIO0_8};
 
-fn handle_set_direction(
+fn handle_set_direction_dynamic(
     pin: DynamicPin,
     direction: pin::Direction,
     // TODO LSS move this conversion to centrl place. should this really happen here?
@@ -331,12 +331,8 @@ fn handle_set_direction(
 ) -> Result<(), PinReadError> {
     // TODO(LSS) move input switch here as well
 
-    // convert from lpc8xx_hal::gpio::Level to protocol::pin::Level
-    // TODO use into() here
-    let gpio_level = match level {
-        pin::Level::High => gpio::Level::High,
-        pin::Level::Low => gpio::Level::Low,
-    };
+    // TODO move this level conversion to oen central place
+    let gpio_level: gpio::Level = level.into();
 
     // todo nicer and more generic once we start enabling ALL the pins
     match pin.get_pin_number().unwrap() {
@@ -385,7 +381,7 @@ fn handle_read_dynamic_pin(
 ) -> Result<(), PinReadError> {
     let pin_number = pin.get_pin_number().unwrap();
 
-    if !FIXED_DIRECTION_PINS.contains(&pin_number) {
+    if FIXED_DIRECTION_PINS.contains(&pin_number) {
         return Err(PinReadError::NotDynamicPin(pin_number));
     }
 
