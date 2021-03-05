@@ -318,6 +318,15 @@ use lpc8xx_hal::gpio::direction::Dynamic;
 use lpc8xx_hal::gpio::GpioPin;
 use crate::{PININT0_PIN, PIO0_8};
 
+
+/// Change the direction of `pin` to `direction`.
+/// - Level only matters for change to output
+///    * group in enum { ToOutPut(level), ToInput } -> bubble up into actual messages across the wire
+/// - you should only be calling this with dynamic pins
+/// - pin has to be a valid pin number
+///    * do the checks above this function?
+/// - dynamic_int_pin_levels should not be full
+/// - we don't try to change our accidentally dynamic pins (RTS/CTS)
 fn handle_set_direction_dynamic(
     pin: DynamicPin,
     direction: pin::Direction,
@@ -335,6 +344,7 @@ fn handle_set_direction_dynamic(
     let gpio_level: gpio::Level = level.into();
 
     // todo nicer and more generic once we start enabling ALL the pins
+    // TODO(LSS) how do I clean this up
     match pin.get_pin_number().unwrap() {
         RED_LED_PIN_NUMBER => {
             pinint0_pin.switch_to_output(gpio_level);
@@ -357,9 +367,7 @@ fn handle_set_direction_dynamic(
         }
         pin_number => {
             dyn_noint_pins.lock(|pin_map| {
-                if pin_map.contains_key(&pin_number) {
-                    // this is a dynamic non-interrupt pin, set its direction
-                    let pin = pin_map.get_mut(&pin_number).unwrap();
+                if let Some(pin) = pin_map.get_mut(&pin_number) {
                     pin.switch_to_output(gpio_level);
                 } else {
                     rprintln!("unsupported pin")

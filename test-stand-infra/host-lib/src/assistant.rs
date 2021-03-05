@@ -30,8 +30,6 @@ const RTS_PIN_NUMBER: PinNumber = 18;
 const CTS_PIN_NUMBER: PinNumber = 19;
 const TARGET_TIMER_PIN_NUMBER: PinNumber = 30;
 
-
-
 // TODO tokenize instead
 pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [6, 29, 31, 33];
 
