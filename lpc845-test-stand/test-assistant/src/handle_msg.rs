@@ -125,12 +125,13 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                                 }
                             }
                             CTS_PIN_NUMBER => {
-                                if cts.direction_is_output() {
-                                    match level {
-                                        pin::Level::High => cts.set_high(),
-                                        pin::Level::Low => cts.set_low(),
-                                    }
-                                }
+                                todo!("AJM: Refactor")
+                                // if cts.direction_is_output() {
+                                //     match level {
+                                //         pin::Level::High => cts.set_high(),
+                                //         pin::Level::Low => cts.set_low(),
+                                //     }
+                                // }
                             }
                             RTS_PIN_NUMBER => {
                                 unreachable!()
@@ -225,9 +226,14 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                         direction: pin::Direction::Output,
                         level: Some(level),
                     }) => {
-                        let _ = handle_set_direction_dynamic(pin, pin::Direction::Output, level, pinint0_pin, cts,
-                                             &mut dynamic_int_pin_levels,
-                                             &mut dyn_noint_pins);
+                        let _ = handle_set_direction_dynamic(
+                            pin,
+                            pin::Direction::Output,
+                            level, pinint0_pin,
+                            // cts, // TODO(AJM): Removing evil
+                            &mut dynamic_int_pin_levels,
+                            &mut dyn_noint_pins
+                        );
                         // TODO(LSS) handle err
                         Ok(())
                     }
@@ -334,7 +340,8 @@ fn handle_set_direction_dynamic(
     level: crate::pin::Level,
     pinint0_pin: &mut GpioPin<PININT0_PIN, Dynamic>,
     // TODO(LSS) remove this once cts is single direction again
-    cts: &mut GpioPin<PIO0_8, Dynamic>,
+    // TODO(AJM): Let's just not
+    // cts: &mut GpioPin<PIO0_8, Dynamic>,
     dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
 ) -> Result<(), PinReadError> {
@@ -359,7 +366,10 @@ fn handle_set_direction_dynamic(
                 .insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
                 .unwrap();
         }
-        CTS_PIN_NUMBER => cts.switch_to_output(gpio_level),
+        CTS_PIN_NUMBER => {
+            todo!("AJM: Excising evil")
+            // cts.switch_to_output(gpio_level)
+        }
         RTS_PIN_NUMBER => {
             // TODO proper error handling
             rprintln!("RTS pin is never Output");

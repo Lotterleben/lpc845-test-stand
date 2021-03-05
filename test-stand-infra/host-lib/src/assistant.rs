@@ -24,6 +24,9 @@ use crate::{
     },
 };
 
+// TODO(AJM): These are fixed pin wherever referred, we should excise
+// TODO(AJM): Host should know NOTHING about specific assistants (at least long term)
+
 // TODO find a place to share them with t-a and t-t?
 /// some commonly used pin numbers
 const RTS_PIN_NUMBER: PinNumber = 18;

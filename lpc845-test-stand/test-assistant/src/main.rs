@@ -149,7 +149,7 @@ const APP: () = {
 
         pin_5: GpioPin<PIO0_20, Output>,
         rts: GpioPin<PIO0_9, Dynamic>, // TODO make unidirectional again
-        cts: GpioPin<PIO0_8, Dynamic>, // TODO make unidirectional again
+        cts: GpioPin<PIO0_8, Output>,
         pinint0_pin: GpioPin<PININT0_PIN, Dynamic>, // pin that triggers PININT0 interrupt
 
         i2c: i2c::Slave<I2C0, Enabled<PhantomData<IOSC>>, Enabled>,
@@ -270,7 +270,7 @@ const APP: () = {
         let cts = p
             .pins
             .pio0_8
-            .into_dynamic_pin(gpio.tokens.pio0_8, gpio::Level::Low, DynamicPinDirection::Output);
+            .into_output_pin(gpio.tokens.pio0_8, gpio::Level::Low);
 
         // Configure the clock for USART0, using the Fractional Rate Generator
         // (FRG) and the USART's own baud rate divider value (BRG). See user
@@ -339,6 +339,7 @@ const APP: () = {
         });
 
         // Configure interrupt for RTS pin
+        // TODO(AJM): Input
         let rts = p.pins.pio0_9.into_dynamic_pin(
             gpio.tokens.pio0_9,
             gpio::Level::High, // off by default (shouldn't matter because rts is input)
