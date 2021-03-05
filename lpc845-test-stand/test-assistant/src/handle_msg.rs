@@ -11,14 +11,20 @@ use lpc845_messages::{
     pin, AssistantToHost, DynamicPin, HostToAssistant, InputPin, OutputPin, UsartMode,
     PinNumber,
 };
+
 #[cfg(feature = "sleep")]
 use lpc8xx_hal::cortex_m::asm;
-use lpc8xx_hal::{gpio::direction, pac::USART0};
-use lpc8xx_hal::usart::state::AsyncMode;
-use lpc8xx_hal::{cortex_m::interrupt, gpio, prelude::*};
+
+use lpc8xx_hal::{
+    pac::USART0,
+    usart::state::AsyncMode,
+    cortex_m::interrupt,
+    gpio,
+    prelude::*,
+};
+
 use rtic::Mutex;
 use rtt_target::rprintln;
-//use void::Void;
 
 pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let host_rx = cx.resources.host_rx_idle;
@@ -34,10 +40,13 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
     let pinint0_pin = cx.resources.pinint0_pin;
     let mut dyn_noint_pins = cx.resources.dyn_noint_pins;
     let dyn_noint_levels_out = cx.resources.dyn_noint_levels_out;
-    let cts = cx.resources.cts;
-    let rts = cx.resources.rts;
+
     let pwm = cx.resources.pwm_idle;
     let pin_5 = cx.resources.pin_5;
+
+    // TODO(LSS): We need to add handling of fixed direction pin messages!
+    let _cts = cx.resources.cts;
+    let _rts = cx.resources.rts;
 
     let mut fixed_pin_levels = FnvIndexMap::<_, _, U8>::new();
     let mut dynamic_int_pin_levels = FnvIndexMap::<_, _, U4>::new();
@@ -226,17 +235,23 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                     // TODO merge this with SetDirection for Input; control flow is duplicate
                     HostToAssistant::SetDirection(pin::SetDirection {
                         pin,
-                        direction: pin::Direction::Output,
+                        direction,
                         level: Some(level),
                     }) => {
-                        let _ = handle_set_direction_dynamic(
+                        let cd = match direction {
+                            pin::Direction::Input => ContextualDirection::Input,
+                            pin::Direction::Output => ContextualDirection::Output(level.into())
+                        };
+
+                        handle_set_direction_dynamic(
                             pin,
-                            pin::Direction::Output,
-                            level, pinint0_pin,
+                            cd,
+                            pinint0_pin,
                             // cts, // TODO(AJM): Removing evil
                             &mut dynamic_int_pin_levels,
                             &mut dyn_noint_pins
-                        );
+                        ).unwrap();
+
                         // TODO(LSS) handle err
                         Ok(())
                     }
@@ -325,8 +340,14 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
 // TODO(LSS) clean this up
 use lpc8xx_hal::gpio::direction::Dynamic;
 use lpc8xx_hal::gpio::GpioPin;
-use crate::{PININT0_PIN, PIO0_8};
+use crate::PININT0_PIN;
 
+// TODO NEEDS BETTER NAME
+#[derive(Debug)]
+pub enum ContextualDirection {
+    Input,
+    Output(gpio::Level),
+}
 
 /// Change the direction of `pin` to `direction`.
 /// - Level only matters for change to output
@@ -338,54 +359,77 @@ use crate::{PININT0_PIN, PIO0_8};
 /// - we don't try to change our accidentally dynamic pins (RTS/CTS)
 fn handle_set_direction_dynamic(
     pin: DynamicPin,
-    direction: pin::Direction,
-    // TODO LSS move this conversion to centrl place. should this really happen here?
-    level: crate::pin::Level,
+    direction: ContextualDirection,
     pinint0_pin: &mut GpioPin<PININT0_PIN, Dynamic>,
-    // TODO(LSS) remove this once cts is single direction again
-    // TODO(AJM): Let's just not
-    // cts: &mut GpioPin<PIO0_8, Dynamic>,
     dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
     dyn_noint_pins: &mut crate::resources::dyn_noint_pins,
-) -> Result<(), PinReadError> {
-    // TODO(LSS) move input switch here as well
+) -> Result<(), DynamicPinError> {
+    // Check if this pin has a mapped pin number (e.g. is it
+    // allocated as a GPIO)
+    let pin_number = if let Some(pn) = pin.get_pin_number() {
+        pn
+    } else {
+        return Err(DynamicPinError::NotGpioPin);
+    };
 
-    // TODO move this level conversion to oen central place
-    let gpio_level: gpio::Level = level.into();
-
-    // todo nicer and more generic once we start enabling ALL the pins
-    // TODO(LSS) how do I clean this up
-    match pin.get_pin_number().unwrap() {
+    match pin_number {
         RED_LED_PIN_NUMBER => {
-            pinint0_pin.switch_to_output(gpio_level);
+            // Why is this special cased?
+            //
+            // Because it is an "Interrupt" pin, and all other pins
+            // are "Polled" pins
+
+            let level = match direction {
+                ContextualDirection::Output(gpio_level) => {
+                    // For output, trust the commanded output
+                    pinint0_pin.switch_to_output(gpio_level);
+                    gpio_level
+                }
+                ContextualDirection::Input => {
+                    // For input, read the input after switching to the
+                    // input mode
+                    pinint0_pin.switch_to_input();
+                    pinint0_pin.get_level()
+                }
+            };
+
             // inintialize interruptable pins so that a status read is
             // possible before the first level change
-            // (TODO is this a separate PR candidate?)
-            let pinint0_level = match pinint0_pin.is_high() {
-                true => pin::Level::High,
-                false => pin::Level::Low,
-            };
+            //
+            // TODO(LSS): Doing this here is either a bug or is smelly
+            //
+            // TODO(AJM): We should think about "rolling back" unsuccessful changes,
+            // e.g. here, we did change the mode, but didn't properly start tracking
+            // the interrupt pin. Is this behavior problematic or could it cause
+            // runtime problems? How could a user revert/or recover from this? Should it
+            // just be a test-ending "abort" condition?
             dynamic_int_pin_levels
-                .insert(RED_LED_PIN_NUMBER as usize, (pinint0_level, None))
-                .unwrap();
+                .insert(RED_LED_PIN_NUMBER as usize, (level.into(), None))
+                .map_err(|_e| DynamicPinError::InterruptPinStorageFull)?;
+
         }
-        CTS_PIN_NUMBER => {
-            todo!("AJM: Excising evil")
-            // cts.switch_to_output(gpio_level)
-        }
-        RTS_PIN_NUMBER => {
-            // TODO proper error handling
-            rprintln!("RTS pin is never Output");
-            unreachable!("AJM: Excising evil")
-        }
-        pin_number => {
+        pn if !FIXED_DIRECTION_PINS.contains(&pn) => {
+            // GOOD, not in the fixed pin set
+
             dyn_noint_pins.lock(|pin_map| {
-                if let Some(pin) = pin_map.get_mut(&pin_number) {
-                    pin.switch_to_output(gpio_level);
-                } else {
-                    rprintln!("unsupported pin")
+                // Ensure we have a NoIntPin
+                let pin = pin_map
+                    .get_mut(&pn)
+                    .ok_or_else(|| DynamicPinError::NotDynamicNoIntPin(pn))?;
+
+                match direction {
+                    ContextualDirection::Output(gpio_level) => {
+                        pin.switch_to_output(gpio_level);
+                    }
+                    ContextualDirection::Input => {
+                        pin.switch_to_input();
+                    }
                 }
-            });
+                Ok(())
+            })?;
+        }
+        pn => {
+            return Err(DynamicPinError::NotDynamicPin(pn));
         }
     };
 
@@ -399,11 +443,11 @@ fn handle_read_dynamic_pin(
     host_tx: &mut Tx<USART0, AsyncMode>,
     buf: &mut [u8],
     dynamic_int_pin_levels: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
-) -> Result<(), PinReadError> {
+) -> Result<(), DynamicPinError> {
     let pin_number = pin.get_pin_number().unwrap();
 
     if FIXED_DIRECTION_PINS.contains(&pin_number) {
-        return Err(PinReadError::NotDynamicPin(pin_number));
+        return Err(DynamicPinError::NotDynamicPin(pin_number));
     }
 
     // TODO(LSS) if thsi keeps reappearing make an enum instead of bool
@@ -437,6 +481,44 @@ fn handle_read_dynamic_pin(
 }
 
 #[derive(Debug)]
-enum PinReadError {
+enum DynamicPinError {
+    /// Tried to change a GPIO that is NOT dynamic
+    ///
+    /// Contains the pin number that was attempted to be changed.
     NotDynamicPin(PinNumber),
+
+    /// Tried to use NoInt methods on a pin that isn't on the NoInt list
+    ///
+    /// This is likely indicative of a coding error at the Assistant firmware
+    /// level, and can likely NOT be recovered from at Runtime
+    NotDynamicNoIntPin(PinNumber),
+
+    /// Tried to configure a pin that is NOT marked as a GPIO
+    ///
+    /// (e.g. a fixed UART/SPI/etc.). No pin number is returned
+    /// because non-GPIO pins don't have numbers.
+    NotGpioPin,
+
+    /// Tried to track an additional interrupt pin, but did not fit into storage
+    ///
+    /// This is likely indicative of a coding/resource allocation error at the
+    /// Assistant firmware level, and can likely NOT be recovered from at Runtime
+    InterruptPinStorageFull,
+}
+
+trait ExtGetLevel {
+    fn get_level(&self) -> lpc8xx_hal::gpio::Level;
+}
+
+impl<GenericPin> ExtGetLevel for GpioPin<GenericPin, Dynamic>
+where
+    GenericPin: lpc8xx_hal::pins::Trait,
+{
+    fn get_level(&self) -> lpc8xx_hal::gpio::Level {
+        if self.is_high() {
+            lpc8xx_hal::gpio::Level::High
+        } else {
+            lpc8xx_hal::gpio::Level::Low
+        }
+    }
 }

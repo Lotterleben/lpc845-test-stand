@@ -89,14 +89,18 @@ const TIMER_INT_PERIOD_MS: u32 = 200 * 6000; // fires every 200 milliseconds
 /// some commonly used pin numbers
 const RTS_PIN_NUMBER: u8 = 18;
 const CTS_PIN_NUMBER: u8 = 19;
-const RED_LED_PIN_NUMBER: u8 = 29;
-const GREEN_LED_PIN_NUMBER : u8 = 31;
+const RED_LED_PIN_NUMBER: u8 = 29;      // TODO(AJM): "DynamicInterruptPin"
+const GREEN_LED_PIN_NUMBER : u8 = 31;   // TODO(AJM): "DynamicPolledPin"
 
 
 // fixed direction pin numbers
 const TARGET_TIMER_PIN_NUMBER: u8 = 30;
 
-const FIXED_DIRECTION_PINS: &[PinNumber] = &[TARGET_TIMER_PIN_NUMBER];
+const FIXED_DIRECTION_PINS: &[PinNumber] = &[
+    TARGET_TIMER_PIN_NUMBER,
+    RTS_PIN_NUMBER,
+    CTS_PIN_NUMBER,
+];
 
 /// The maxiumum number of GPIO pins that are direction-changeable at runtime and read
 /// periodically (i.e. do not trigger any interrupts)
