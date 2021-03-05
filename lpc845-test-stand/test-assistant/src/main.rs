@@ -14,7 +14,7 @@ use core::marker::PhantomData;
 
 use heapless::{consts::U4, consts::U8, spsc::Consumer, spsc::Producer, FnvIndexMap};
 use lpc8xx_hal::{
-    gpio::{self, direction::Dynamic, direction::Output, GpioPin},
+    gpio::{self, direction::Dynamic, direction::{Input, Output}, GpioPin},
     i2c,
     init_state::Enabled,
     mrt::{
@@ -148,7 +148,7 @@ const APP: () = {
         pwm_idle: pin_interrupt::Idle<'static>,
 
         pin_5: GpioPin<PIO0_20, Output>,
-        rts: GpioPin<PIO0_9, Dynamic>, // TODO make unidirectional again
+        rts: GpioPin<PIO0_9, Input>,
         cts: GpioPin<PIO0_8, Output>,
         pinint0_pin: GpioPin<PININT0_PIN, Dynamic>, // pin that triggers PININT0 interrupt
 
@@ -340,10 +340,8 @@ const APP: () = {
 
         // Configure interrupt for RTS pin
         // TODO(AJM): Input
-        let rts = p.pins.pio0_9.into_dynamic_pin(
+        let rts = p.pins.pio0_9.into_input_pin(
             gpio.tokens.pio0_9,
-            gpio::Level::High, // off by default (shouldn't matter because rts is input)
-            DynamicPinDirection::Input,
         );
         let mut rts_int = pinint
             .interrupts

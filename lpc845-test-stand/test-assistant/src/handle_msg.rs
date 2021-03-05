@@ -201,7 +201,10 @@ pub fn handle_idle(cx: crate::idle::Context) -> ! {
                                 rprintln!("CTS pin is never Input");
                                 unreachable!()
                             }
-                            RTS_PIN_NUMBER => rts.switch_to_input(),
+                            RTS_PIN_NUMBER => {
+                                todo!("AJM: Excise evil")
+                                // rts.switch_to_input()
+                            }
                             TARGET_TIMER_PIN_NUMBER => {
                                 // Ignore for now, we've hardcoded this pin as input
                                 // TODO fix this
@@ -373,7 +376,7 @@ fn handle_set_direction_dynamic(
         RTS_PIN_NUMBER => {
             // TODO proper error handling
             rprintln!("RTS pin is never Output");
-            unreachable!()
+            unreachable!("AJM: Excising evil")
         }
         pin_number => {
             dyn_noint_pins.lock(|pin_map| {
