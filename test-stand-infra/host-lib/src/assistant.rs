@@ -756,37 +756,29 @@ impl Assistant {
     pub fn expect_nothing_from_target(&mut self, timeout: Duration)
     -> Result<(), AssistantError>
     {
-        self.expect_nothing_from_target_inner(timeout)
-            .map_err(|err| AssistantError::ExpectNothing(err))
-    }
-
-    pub fn expect_nothing_from_target_inner(
-        &mut self,
-        timeout: Duration,
-    ) -> Result<(), AssistantExpectNothingError> {
         loop {
             let mut tmp = Vec::new();
             let message = self.conn.receive::<AssistantToHost>(timeout, &mut tmp);
 
+            // TODO rm one layer of errs here, they look redundant
             match message {
                 Ok(message) => {
-                    return Err(AssistantExpectNothingError::UnexpectedMessage(format!(
+                    return Err(AssistantError::ExpectNothing(AssistantExpectNothingError::UnexpectedMessage(format!(
                         "{:?}",
                         message
-                    )));
+                    ))));
                 }
                 Err(err) if err.is_timeout() => {
                     break;
                 }
                 Err(err) => {
-                    return Err(AssistantExpectNothingError::Receive(err));
+                    return Err(AssistantError::ExpectNothing(AssistantExpectNothingError::Receive(err)));
                 }
             }
         }
 
         Ok(())
     }
-}
 
 #[derive(Debug)]
 pub struct GpioPeriodMeasurement {
