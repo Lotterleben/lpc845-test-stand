@@ -41,7 +41,9 @@ pub struct AssistantInterface<Assistant> {
     real_assistant: RwLock<Assistant>,
 }
 
-/// The connection to the test assistant
+/// The connection to the test assistant.
+/// Not to be used directly by test writers, use [`AssistantInterface`](AssistantInterface) instead.
+/// TODO: constrain visbility?
 pub struct Assistant {
     /// connection between test-assistant and host
     conn: Conn,
@@ -93,9 +95,12 @@ impl AssistantInterface<Assistant> {
     /// * Sends:
     ///   * [`HostToAssistant::SetDirection`](protocol::HostToAssistant::SetDirection)
     /// * On Success:
-    ///   * ?
+    ///   * receives nothing (un-ack-ed communication)
     /// * Potential Errors:
-    ///   * ?
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * `pin_number` does not correspond to an existing pin
+    ///   * `pin_number` is already in use
     pub fn create_gpio_input_pin(
         &self,
         pin_number: PinNumber,
@@ -133,6 +138,16 @@ impl AssistantInterface<Assistant> {
     /// Retrieve an OutputPin instance that we can use to (re)configure the test-assistant's pin with
     /// number `pin_number` at test runtime.
     /// If this function returns without Error, the pin's voltage has been set to `level`.
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::SetDirection`](protocol::HostToAssistant::SetDirection)
+    /// * On Success:
+    ///   * receives nothing (un-ack-ed communication)
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * `pin_number` does not correspond to an existing pin
+    ///   * `pin_number` is already in use
     pub fn create_gpio_output_pin(
         &self,
         pin_number: PinNumber,
@@ -168,6 +183,27 @@ impl AssistantInterface<Assistant> {
         Err(AssistantError::AssistantLocked)
     }
 
+    /// Measures the period of changes triggered by the target Timer interrupt signal
+    /// on pin number 30 / PIO1_1
+    ///
+    /// Waits for changes in the GPIO signal until the given number of samples
+    /// has been measured. Returns the minimum and maximum period measured, in
+    /// milliseconds.
+    ///
+    /// # Panics
+    ///
+    /// `samples` must be at least `1`. This method will panic, if this is not
+    /// the case.
+    ///
+    /// * Sends:
+    ///   * `samples` numbers of [`protocol::pin::ReadLevel`](protocol::pin::ReadLevel)
+    /// * On Success:
+    ///   * receives `samples` numbers of [`protocol::pin::ReadLevelResult`](protocol::pin::ReadLevelResult)s
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * receive timeout
+    ///   * some `measurement` is none (current code looks like this can't happen though?)
     pub fn measure_gpio_period(
         &mut self,
         samples: u32,
@@ -258,6 +294,16 @@ impl AssistantInterface<Assistant> {
     }
 
     /// Instruct the assistant to disable CTS
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::SetLevel`](HostToAssistant::SetLevel)
+    /// * On Success:
+    ///   * nothing is received
+    ///   * CTS pin is high
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * cts pin is already taken
     pub fn disable_cts(&mut self) -> Result<(), AssistantError> {
         let lock = self.real_assistant.try_write();
         // note to self: loop until we get the lock?
@@ -270,6 +316,16 @@ impl AssistantInterface<Assistant> {
     }
 
     /// Wait for RTS signal to be enabled
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::SetLevel`](HostToAssistant::SetLevel)
+    /// * On Success:
+    ///   * nothing is received
+    ///   * RTS pin is confirmed to be low
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * rts pin is already taken
     pub fn wait_for_rts(&mut self) -> Result<bool, AssistantError> {
         let lock = self.real_assistant.try_write();
         // note to self: loop until we get the lock?
@@ -281,6 +337,15 @@ impl AssistantInterface<Assistant> {
     }
 
     /// Expect to hear nothing from the target within the given timeout period
+    ///
+    /// * Sends:
+    ///   * nothing
+    /// * On Success:
+    ///   * nothing is received
+    /// * Potential Errors:
+    ///   * `AssistantError::ExpectNothing(AssistantExpectNothingError::UnexpectedMessage(msg))`
+    ///   * `AssistantError::ExpectNothing(AssistantExpectNothingError::Receive(err))`
+    ///   * assistant locked
     pub fn expect_nothing_from_target(
         &mut self,
         timeout: Duration,
@@ -632,17 +697,7 @@ impl Assistant {
         Ok(self.receive_from_target_usart_inner(data, timeout, UsartMode::Sync)?)
     }
 
-    /// Measures the period of changes triggered by the target Timer interrupt signal
-    /// on pin number 30 / PIO1_1
-    ///
-    /// Waits for changes in the GPIO signal until the given number of samples
-    /// has been measured. Returns the minimum and maximum period measured, in
-    /// milliseconds.
-    ///
-    /// # Panics
-    ///
-    /// `samples` must be at least `1`. This method will panic, if this is not
-    /// the case.
+    // for docs, see pub wrapper in `AssistantInterface`
     pub fn measure_gpio_period(
         &mut self,
         samples: u32,
