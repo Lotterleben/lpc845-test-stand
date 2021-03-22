@@ -397,6 +397,15 @@ impl<'assistant> InputPin<'assistant, Assistant> {
     }
 
     /// Indicates whether this pin receives a **Low** signal from the test target
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::pin::ReadLevel`](HostToAssistant::pin::ReadLevel)
+    /// * On Success:
+    ///   * `ReadLevelResult` is received
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * recv timeout
     pub fn is_low(&mut self) -> Result<bool, AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
@@ -407,6 +416,7 @@ impl<'assistant> InputPin<'assistant, Assistant> {
     }
 
     /// Indicates whether this pin receives a **High** signal from the test target
+    /// RPC doc: see is_low()
     pub fn is_high(&mut self) -> Result<bool, AssistantError> {
         match self.is_low() {
             Ok(is_low) => Ok(!is_low),
@@ -438,6 +448,14 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     }
 
     /// Set this pin's level to Low.
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::pin::SetLevel`](HostToAssistant::pin::SetLevel)
+    /// * On Success:
+    ///   * nothing is receved
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
     pub fn set_low(&mut self) -> Result<(), AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
@@ -451,6 +469,13 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     }
 
     /// Set this pin's level to High.
+    /// * Sends:
+    ///   * [`HostToAssistant::pin::SetLevel`](HostToAssistant::pin::SetLevel)
+    /// * On Success:
+    ///   * nothing is receved
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
     pub fn set_high(&mut self) -> Result<(), AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
@@ -464,6 +489,14 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     }
 
     /// Indicates whether this pin currently is set to **Low**
+    /// * Sends:
+    ///   * [`HostToAssistant::pin::ReadLevel`](HostToAssistant::pin::ReadLevels)
+    /// * On Success:
+    ///   * current pin level + maybe leveltime is received
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * receive timeout
     pub fn is_set_low(&mut self) -> Result<bool, AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
@@ -474,6 +507,7 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     }
 
     /// Indicates whether this pin currently is set to **High**
+    /// RPC doc: see is_set_low
     pub fn is_set_high(&mut self) -> Result<bool, AssistantError> {
         match self.is_set_low() {
             Ok(is_low) => Ok(!is_low),
@@ -481,7 +515,7 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
         }
     }
 }
-
+// TODO(LSS) internal helpers should not be pub!
 impl Assistant {
     pub(crate) fn new(conn: Conn, num_pins: u8) -> Self {
         let mut s = Self {
@@ -556,6 +590,15 @@ impl Assistant {
     }
 
     /// Make the test-assistant's `pin` an Output pin.
+    /// * Sends:
+    ///   * [`HostToAssistant::SetDirection`](HostToAssistant::SetDirection)
+    /// * On Success:
+    ///   * nothing is received
+    ///   * CTS pin is high
+    /// * Potential Errors:
+    ///   * assistant locked
+    ///   * send timeout
+    ///   * `AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err)))`
     pub fn set_pin_direction_output(
         &mut self,
         pin: DynamicPin,
