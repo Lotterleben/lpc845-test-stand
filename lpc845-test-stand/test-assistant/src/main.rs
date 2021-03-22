@@ -660,7 +660,7 @@ const APP: () = {
 
 /// Collect data from all Interrupts that were fired for `pin`
 fn handle_pin_interrupt_dynamic(
-    int: &mut pin_interrupt::Idle,
+    int: &mut pin_interrupt::Idle, // Consumer<'r, Event, QueueCap = U32
     pin: DynamicPin,
     // TODO: why are we even using usize for index if values never exceed u0?
     pins: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U4>,
@@ -681,24 +681,8 @@ fn handle_pin_interrupt_dynamic(
 }
 
 // TODO merge w handle_pin_interrupt_dynamic / make more generic
-fn handle_pin_interrupt_noint_dynamic(
-    consumer: &mut Consumer<'static, PinMeasurementEvent, U4>,
-    pins: &mut FnvIndexMap<usize, gpio::Level, U4>,
-) {
-    while let Some(event) = consumer.dequeue() {
-        match event {
-            PinMeasurementEvent { pin_number, level } => {
-                // TODO note that this stores a diff level type than handle_pin_interrupt_dynamic()
-                // -> angleichen
-                pins.insert(pin_number as usize, level).unwrap();
-            }
-        }
-    }
-}
-
-// TODO merge w handle_pin_interrupt_dynamic / make more generic
 fn handle_pin_interrupt(
-    int:  &mut pin_interrupt::Idle,
+    int:  &mut pin_interrupt::Idle, // Consumer<'r, Event, QueueCap = U32>
     pin:  InputPin,
     pins: &mut FnvIndexMap<usize, (pin::Level, Option<u32>), U8>,
 ) {
@@ -714,3 +698,21 @@ fn handle_pin_interrupt(
         }
     }
 }
+
+
+// TODO merge w handle_pin_interrupt_dynamic / make more generic
+fn handle_pin_interrupt_noint_dynamic(
+    consumer: &mut Consumer<'static, PinMeasurementEvent, U4>,
+    pins: &mut FnvIndexMap<usize, gpio::Level, U4>,
+) {
+    while let Some(event) = consumer.dequeue() {
+        match event {
+            PinMeasurementEvent { pin_number, level } => {
+                // TODO note that this stores a diff level type than handle_pin_interrupt_dynamic()
+                // -> angleichen
+                pins.insert(pin_number as usize, level).unwrap();
+            }
+        }
+    }
+}
+

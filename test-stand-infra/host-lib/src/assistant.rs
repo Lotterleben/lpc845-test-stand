@@ -89,6 +89,13 @@ impl AssistantInterface<Assistant> {
 
     /// Retrieve an InputPin instance that we can use to (re)configure the test-assistant's pin with
     /// number `pin_number` at test runtime.
+    ///
+    /// * Sends:
+    ///   * [`HostToAssistant::SetDirection`](protocol::HostToAssistant::SetDirection)
+    /// * On Success:
+    ///   * ?
+    /// * Potential Errors:
+    ///   * ?
     pub fn create_gpio_input_pin(
         &self,
         pin_number: PinNumber,
