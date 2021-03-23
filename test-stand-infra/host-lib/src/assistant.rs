@@ -515,6 +515,7 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
         }
     }
 }
+
 // TODO(LSS) internal helpers should not be pub!
 impl Assistant {
     pub(crate) fn new(conn: Conn, num_pins: u8) -> Self {
@@ -822,6 +823,7 @@ impl Assistant {
 
         Ok(())
     }
+}
 
 #[derive(Debug)]
 pub struct GpioPeriodMeasurement {
