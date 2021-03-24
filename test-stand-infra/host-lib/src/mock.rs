@@ -15,7 +15,10 @@ use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
 
 pub struct Mock {
+    // Data SENT by the PC TO the TA
     data_out: Arc<Mutex<VecDeque<Vec<u8>>>>,
+
+    // Data RECEIVED by the PC FROM the TA
     data_in: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
@@ -50,6 +53,22 @@ impl Mock {
         };
 
         in_empty && out_empty
+    }
+
+    pub fn push_fake_ta_data(&self, data: &[u8]) {
+        if let Ok(mut vd) = self.data_in.lock() {
+            vd.push_front(data.to_vec());
+        } else {
+            todo!()
+        }
+    }
+
+    pub fn pop_host_lib_data(&self) -> Option<Vec<u8>> {
+        if let Ok(mut vd) = self.data_out.lock() {
+            vd.pop_back()
+        } else {
+            todo!()
+        }
     }
 }
 
