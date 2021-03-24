@@ -11,6 +11,9 @@ postcard    = "0.5.1"
 serde       = "1.0.115"
 toml        = "0.5.6"
 
+[dev-dependencies]
+insta = "1.7"
+
 [dependencies.protocol]
 path = "../protocol"
 

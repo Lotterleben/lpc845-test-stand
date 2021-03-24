@@ -1,0 +1,12 @@
+---
+source: tests/smoke-mock.rs
+expression: test_hdl.pop_host_lib_data().unwrap()
+
+---
+[
+    2,
+    1,
+    1,
+    1,
+    0,
+]
