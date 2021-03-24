@@ -19,6 +19,15 @@ pub struct Mock {
     data_in: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
+impl Clone for Mock {
+    fn clone(&self) -> Self {
+        Self {
+            data_in: self.data_in.clone(),
+            data_out: self.data_out.clone(),
+        }
+    }
+}
+
 impl Mock {
     pub fn new() -> Self {
         Self {
@@ -26,20 +35,53 @@ impl Mock {
             data_in: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
+
+    pub fn is_totally_empty(&self) -> bool {
+        let in_empty = if let Ok(vd) = self.data_in.lock() {
+            vd.is_empty()
+        } else {
+            todo!()
+        };
+
+        let out_empty = if let Ok(vd) = self.data_out.lock() {
+            vd.is_empty()
+        } else {
+            todo!()
+        };
+
+        in_empty && out_empty
+    }
 }
 
 impl Read for Mock {
-    fn read(&mut self, _: &mut [u8]) -> Result<usize, IoError> {
-        todo!()
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        if let Ok(mut vd) = self.data_in.lock() {
+            if let Some(data) = vd.pop_front() {
+                // TODO: implement partial reads?
+                assert!(buf.len() >= data.len());
+
+                buf[..data.len()].copy_from_slice(&data);
+                Ok(data.len())
+            } else {
+                return Ok(0);
+            }
+        } else {
+            todo!()
+        }
     }
 }
 
 impl Write for Mock {
-    fn write(&mut self, _: &[u8]) -> Result<usize, IoError> {
-        todo!()
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        if let Ok(mut vd) = self.data_out.lock() {
+            vd.push_back(buf.to_vec());
+            Ok(buf.len())
+        } else {
+            todo!()
+        }
     }
     fn flush(&mut self) -> Result<(), IoError> {
-        todo!()
+        Ok(())
     }
 }
 
@@ -114,10 +156,7 @@ impl SerialPort for Mock {
         todo!()
     }
     fn try_clone(&self) -> Result<Box<(dyn SerialPort + 'static)>, SpError> {
-        Ok(Box::new(Self {
-            data_in: self.data_in.clone(),
-            data_out: self.data_out.clone(),
-        }))
+        Ok(Box::new(self.clone()))
     }
     fn set_break(&self) -> Result<(), SpError> {
         todo!()
