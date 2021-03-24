@@ -33,8 +33,12 @@ impl Conn {
             .open()
             .map_err(|err| ConnInitError(err))?;
 
+        Self::from_serial_port(port)
+    }
+
+    pub fn from_serial_port(sp: Box<dyn SerialPort>) -> Result<Self, ConnInitError> {
         // Use a clone of the serialport, so `Serial` can use the same port.
-        let port = port.try_clone()
+        let port = sp.try_clone()
             .map_err(|err| ConnInitError(err))?;
 
         Ok(
