@@ -11,7 +11,22 @@ use std::io::{Read, Write};
 use std::io::Error as IoError;
 use std::time::Duration;
 
-pub struct Mock {}
+use std::sync::{Arc, Mutex};
+use std::collections::VecDeque;
+
+pub struct Mock {
+    data_out: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    data_in: Arc<Mutex<VecDeque<Vec<u8>>>>,
+}
+
+impl Mock {
+    pub fn new() -> Self {
+        Self {
+            data_out: Arc::new(Mutex::new(VecDeque::new())),
+            data_in: Arc::new(Mutex::new(VecDeque::new())),
+        }
+    }
+}
 
 impl Read for Mock {
     fn read(&mut self, _: &mut [u8]) -> Result<usize, IoError> {
@@ -99,7 +114,10 @@ impl SerialPort for Mock {
         todo!()
     }
     fn try_clone(&self) -> Result<Box<(dyn SerialPort + 'static)>, SpError> {
-        todo!()
+        Ok(Box::new(Self {
+            data_in: self.data_in.clone(),
+            data_out: self.data_out.clone(),
+        }))
     }
     fn set_break(&self) -> Result<(), SpError> {
         todo!()
