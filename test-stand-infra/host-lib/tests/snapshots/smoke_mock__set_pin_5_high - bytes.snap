@@ -1,6 +1,6 @@
 ---
 source: tests/smoke-mock.rs
-expression: test_hdl.pop_host_lib_data().unwrap()
+expression: "&msg"
 
 ---
 [
