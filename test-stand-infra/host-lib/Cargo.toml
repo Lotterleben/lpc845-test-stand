@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.4.0"
-postcard    = "0.5.1"
 serde       = "1.0.115"
 toml        = "0.5.6"
 
@@ -20,3 +19,7 @@ path = "../protocol"
 [dependencies.serialport]
 version          = "4.0.0"
 default-features = false # depends on libudev by default
+
+[dependencies.postcard]
+version = "0.5.1"
+features = ["use-std"]

@@ -74,14 +74,22 @@ impl Mock {
 
 impl Read for Mock {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        println!("read");
         if let Ok(mut vd) = self.data_in.lock() {
             if let Some(data) = vd.pop_front() {
-                // TODO: implement partial reads?
-                assert!(buf.len() >= data.len());
+                // support partial reads
+                let actual_size = buf.len().min(data.len());
+                let (start, end) = data.split_at(actual_size);
 
-                buf[..data.len()].copy_from_slice(&data);
-                Ok(data.len())
+                buf[..actual_size].copy_from_slice(start);
+
+                if !end.is_empty() {
+                    let end = end.to_vec();
+                    vd.push_front(end);
+                }
+                Ok(actual_size)
             } else {
+                // "EOF"
                 return Ok(0);
             }
         } else {
