@@ -3,7 +3,7 @@ use host_lib::{
     assistant::Assistant,
     conn::Conn,
 };
-use protocol::HostToAssistant;
+use protocol::{AssistantToHost, HostToAssistant, InputPin, pin::{Level, ReadLevelResult}};
 use postcard;
 
 use insta::assert_debug_snapshot;
@@ -32,7 +32,6 @@ fn set_pin_5_high() {
     let mut msg_clone = msg.clone();
     let deser_msg: HostToAssistant = postcard::from_bytes_cobs(&mut msg_clone).unwrap();
 
-    // TODO: Use the protocol to deserialize?
     // Add insta for snapshot tests
     assert_debug_snapshot!(
         "set_pin_5_high - bytes",
@@ -45,4 +44,43 @@ fn set_pin_5_high() {
     );
 
     assert!(test_hdl.is_totally_empty());
+}
+
+#[test]
+fn pin_is_high() {
+    // SET UP TEST
+    let mock = Mock::new();
+    let test_hdl = mock.clone();
+
+    let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+    let mut assistant = Assistant::new(conn);
+
+    let tst_result = AssistantToHost::ReadPinResult(Some(ReadLevelResult{pin: InputPin::Green, level: Level::High, period_ms: None}));
+    let serialized_response = postcard::to_stdvec_cobs(&tst_result).unwrap();
+
+    // add fake response
+    test_hdl.push_fake_ta_data(&serialized_response);
+
+    // RUN TEST #1
+    assert!(assistant.pin_is_high().unwrap());
+
+    // observe host lib behavior
+    let msg = test_hdl.pop_host_lib_data().unwrap();
+    let mut msg_clone = msg.clone();
+    let deser_msg: HostToAssistant = postcard::from_bytes_cobs(&mut msg_clone).unwrap();
+
+    // Add insta for snapshot tests
+    assert_debug_snapshot!(
+        "pin_is_high - bytes",
+        &msg
+    );
+
+    assert_debug_snapshot!(
+        "pin_is_high - parsed",
+        &deser_msg
+    );
+
+    // ASSERT POSTCONDITION
+    assert!(test_hdl.is_totally_empty());
+
 }

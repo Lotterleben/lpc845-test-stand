@@ -74,7 +74,6 @@ impl Mock {
 
 impl Read for Mock {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
-        println!("read");
         if let Ok(mut vd) = self.data_in.lock() {
             if let Some(data) = vd.pop_front() {
                 // support partial reads
@@ -153,7 +152,8 @@ impl SerialPort for Mock {
         todo!()
     }
     fn set_timeout(&mut self, _: Duration) -> Result<(), SpError> {
-        todo!()
+        // ignore timeouts
+        Ok(())
     }
     fn write_request_to_send(&mut self, _: bool) -> Result<(), SpError> {
         todo!()
