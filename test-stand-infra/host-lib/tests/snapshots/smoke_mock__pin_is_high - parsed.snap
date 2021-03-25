@@ -1,0 +1,10 @@
+---
+source: test-stand-infra/host-lib/tests/smoke-mock.rs
+expression: "&deser_msg"
+
+---
+ReadPin(
+    ReadLevel {
+        pin: Green,
+    },
+)
