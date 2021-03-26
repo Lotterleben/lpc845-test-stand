@@ -1,6 +1,6 @@
 use host_lib::{
     mock::Mock,
-    assistant::Assistant,
+    assistant::{Assistant, GpioPeriodMeasurement},
     conn::Conn,
 };
 use protocol::{UsartMode, AssistantToHost, HostToAssistant, InputPin, pin::{Level, ReadLevelResult}};
@@ -507,6 +507,13 @@ fn measure_timer_interrupt() {
 
     // RUN TEST #1
     let data = assistant.measure_timer_interrupt(1, Duration::from_millis(100)).unwrap();
+    assert_eq!(
+        data,
+        GpioPeriodMeasurement {
+            min: Duration::from_millis(10),
+            max: Duration::from_millis(10),
+        }
+    );
 
     // observe host lib behavior
     for _ in 0..2 {
@@ -524,6 +531,86 @@ fn measure_timer_interrupt() {
             &deser_msg
         );
     }
+
+    // ASSERT POSTCONDITION
+    assert!(test_hdl.is_totally_empty());
+}
+
+#[test]
+fn measure_pwm_signal() {
+    // SET UP TEST
+    let mock = Mock::new();
+    let test_hdl = mock.clone();
+
+    let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+    let mut assistant = Assistant::new(conn);
+
+    let tst_result_1 = AssistantToHost::ReadPinResult(Some(ReadLevelResult{pin: InputPin::Pwm, level: Level::High, period_ms: Some(10)}));
+    let serialized_response_1 = postcard::to_stdvec_cobs(&tst_result_1).unwrap();
+
+    let tst_result_2 = AssistantToHost::ReadPinResult(Some(ReadLevelResult{pin: InputPin::Pwm, level: Level::Low, period_ms: Some(10)}));
+    let serialized_response_2 = postcard::to_stdvec_cobs(&tst_result_2).unwrap();
+
+    // add fake response
+    test_hdl.push_fake_ta_data(&serialized_response_1);
+    test_hdl.push_fake_ta_data(&serialized_response_2);
+
+    // RUN TEST #1
+    let data = assistant.measure_pwm_signal(1, Duration::from_millis(100)).unwrap();
+    assert_eq!(
+        data,
+        GpioPeriodMeasurement {
+            min: Duration::from_millis(10),
+            max: Duration::from_millis(10),
+        }
+    );
+
+
+    // observe host lib behavior
+    for _ in 0..2 {
+        let msg = test_hdl.pop_host_lib_data().unwrap();
+        let mut msg_clone = msg.clone();
+        let deser_msg: HostToAssistant = postcard::from_bytes_cobs(&mut msg_clone).unwrap();
+
+        assert_debug_snapshot!(
+            "measure_pwm_signal - bytes",
+            &msg
+        );
+
+        assert_debug_snapshot!(
+            "measure_pwm_signal - parsed",
+            &deser_msg
+        );
+    }
+
+    // ASSERT POSTCONDITION
+    assert!(test_hdl.is_totally_empty());
+}
+
+#[test]
+fn expect_nothing_from_target() {
+    // SET UP TEST
+    let mock = Mock::new();
+    let test_hdl = mock.clone();
+
+    let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+    let mut assistant = Assistant::new(conn);
+
+    // RUN TEST #1
+    assistant.expect_nothing_from_target(Duration::from_millis(100)).unwrap();
+
+    // RUN TEST #2
+    let tst_result_2 = AssistantToHost::ReadPinResult(Some(ReadLevelResult{pin: InputPin::Pwm, level: Level::Low, period_ms: Some(10)}));
+    let serialized_response_2 = postcard::to_stdvec_cobs(&tst_result_2).unwrap();
+
+    // add fake response
+    test_hdl.push_fake_ta_data(&serialized_response_2);
+
+    assert!(assistant.expect_nothing_from_target(Duration::from_millis(100)).is_err());
+
+
+    // observe host lib behavior
+    // NOTE: Host doesn't send anything
 
     // ASSERT POSTCONDITION
     assert!(test_hdl.is_totally_empty());

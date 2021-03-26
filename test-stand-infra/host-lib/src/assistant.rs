@@ -388,7 +388,7 @@ impl Assistant {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct GpioPeriodMeasurement {
     pub min: Duration,
     pub max: Duration,

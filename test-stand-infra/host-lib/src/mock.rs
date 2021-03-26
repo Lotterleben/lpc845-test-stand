@@ -8,7 +8,7 @@ use serialport::{
     FlowControl,
 };
 use std::io::{Read, Write};
-use std::io::Error as IoError;
+use std::io::{Error as IoError, ErrorKind};
 use std::time::Duration;
 
 use std::sync::{Arc, Mutex};
@@ -88,8 +88,7 @@ impl Read for Mock {
                 }
                 Ok(actual_size)
             } else {
-                // "EOF"
-                return Ok(0);
+                return Err(IoError::new(ErrorKind::TimedOut, "Hello"));
             }
         } else {
             todo!()
