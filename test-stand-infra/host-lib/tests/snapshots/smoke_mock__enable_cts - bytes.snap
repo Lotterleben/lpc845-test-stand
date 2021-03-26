@@ -1,0 +1,12 @@
+---
+source: tests/smoke-mock.rs
+expression: "&msg"
+
+---
+[
+    4,
+    1,
+    1,
+    1,
+    0,
+]
