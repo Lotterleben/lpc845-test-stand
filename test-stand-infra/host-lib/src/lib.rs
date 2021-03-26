@@ -8,9 +8,6 @@ pub mod error;
 pub mod pin;
 pub mod test_stand;
 
-// TODO AJM - mock test
-pub mod mock;
-
 
 pub use self::{
     assistant::Assistant,

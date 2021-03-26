@@ -36,6 +36,12 @@ impl Conn {
         Self::from_serial_port(port)
     }
 
+    /// Open the connection with a given serial device.
+    ///
+    /// `sp` is an existing Serial Port.
+    ///
+    /// NOTE: The serial port must be in a reasonable configuration. At the
+    /// moment, a baud rate of 115200bps is expected. See Self::new() for more details.
     pub fn from_serial_port(sp: Box<dyn SerialPort>) -> Result<Self, ConnInitError> {
         // Use a clone of the serialport, so `Serial` can use the same port.
         let port = sp.try_clone()
