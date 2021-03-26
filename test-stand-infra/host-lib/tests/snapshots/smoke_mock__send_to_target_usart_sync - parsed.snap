@@ -1,0 +1,14 @@
+---
+source: tests/smoke-mock.rs
+expression: "&deser_msg"
+
+---
+SendUsart {
+    mode: Sync,
+    data: [
+        254,
+        237,
+        218,
+        122,
+    ],
+}

@@ -1,0 +1,10 @@
+---
+source: tests/smoke-mock.rs
+expression: "&deser_msg"
+
+---
+ReadPin(
+    ReadLevel {
+        pin: Rts,
+    },
+)
