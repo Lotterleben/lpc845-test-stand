@@ -1,0 +1,11 @@
+---
+source: tests/smoke-mock.rs
+expression: "&deser_msg"
+
+---
+SetPin(
+    SetLevel {
+        pin: Red,
+        level: Low,
+    },
+)
