@@ -5,11 +5,10 @@ use std::collections::HashMap;
 
 use protocol::{
     AssistantToHost,
-    DynamicPin,
+//    DynamicPin,
     HostToAssistant,
     UsartMode,
-    pin,
-    PinNumber,
+    pin::{self,PinNumber},
 };
 
 use crate::{
@@ -32,6 +31,12 @@ use crate::{
 const RTS_PIN_NUMBER: PinNumber = 18;
 const CTS_PIN_NUMBER: PinNumber = 19;
 const TARGET_TIMER_PIN_NUMBER: PinNumber = 30;
+
+#[derive(Debug)]
+enum PinDirection {
+    Input,
+    Output
+}
 
 // TODO tokenize instead
 pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [6, 29, 31, 33];
@@ -73,6 +78,18 @@ pub struct OutputPin<'assistant, Assistant> {
     assistant: &'assistant RwLock<Assistant>,
 }
 
+fn valid_pin_choice(pin: PinNumber, direction: PinDirection) -> Result<(), AssistantError>{
+    match (pin, direction) {
+        (5, PinDirection::Output) => Ok(()),
+        (29, PinDirection::Output) => Ok(()), // red
+        (30, PinDirection::Input) => Ok(()), // blue
+        (31, PinDirection::Input) => Ok(()), // green
+        (18, PinDirection::Input) => Ok(()), // rts
+        (19, PinDirection::Output) => Ok(()), // cts
+        _ => Err(AssistantError::PinOperation(AssistantPinOperationError::IllegalPinNumber(pin)))
+    }
+}
+
 /// Grants access to the test assistant in order to create dynamically reconfigurable
 /// GPIO pins used for testing.
 impl AssistantInterface<Assistant> {
@@ -105,6 +122,7 @@ impl AssistantInterface<Assistant> {
         &self,
         pin_number: PinNumber,
     ) -> Result<InputPin<Assistant>, AssistantError> {
+
         // TODO use tokens to detect this at compile time
         if !LEGAL_DYNAMIC_PINS.contains(&pin_number) {
             print!("Error: trying to use pin that is not configurable from tests: {:?}\n", pin_number);
@@ -181,6 +199,13 @@ impl AssistantInterface<Assistant> {
             }
         }
         Err(AssistantError::AssistantLocked)
+    }
+
+
+    pub fn measure_timer_interrupt(&mut self, samples: u32, timeout: Duration)
+    -> Result<GpioPeriodMeasurement, AssistantError>
+    {
+        todo!("re-add")
     }
 
     /// Measures the period of changes triggered by the target Timer interrupt signal
@@ -372,30 +397,6 @@ impl AssistantInterface<Assistant> {
 }
 
 impl<'assistant> InputPin<'assistant, Assistant> {
-    /// Convert this pin into an Output pin with initial voltage `level`.
-    pub fn into_output_pin(
-        mut self,
-        level: pin::Level,
-    ) -> Result<OutputPin<'assistant, Assistant>, AssistantError> {
-        // note to self: loop until we get the lock?
-        let lock = self.assistant.try_write();
-
-        match lock {
-            Ok(mut assistant) => {
-                assistant
-                    .pin_direction_to_output(&mut self.pin, level)
-                    .unwrap();
-
-                Ok(OutputPin {
-                    pin_number: self.pin_number,
-                    pin: self.pin,
-                    assistant: self.assistant,
-                })
-            }
-            Err(_) => Err(AssistantError::AssistantLocked),
-        }
-    }
-
     /// Indicates whether this pin receives a **Low** signal from the test target
     ///
     /// * Sends:
@@ -739,6 +740,11 @@ impl Assistant {
         timeout: Duration,
     ) -> Result<Vec<u8>, AssistantUsartWaitError> {
         Ok(self.receive_from_target_usart_inner(data, timeout, UsartMode::Sync)?)
+    }
+
+    pub fn measure_pwm_signal(&mut self, samples: u32, timeout: Duration)
+        -> Result<GpioPeriodMeasurement, AssistantError> {
+        todo!("got lost in re-factoring, re-add");
     }
 
     // for docs, see pub wrapper in `AssistantInterface`

@@ -9,6 +9,9 @@ use serde::{
     Serialize,
 };
 
+/// Index of a LPC845 breakout board pinout, counted from top left counterclockwise to top right
+/// (see https://www.nxp.com/assets/images/en/block-diagrams/LPC845-BRK-BD2.png )
+pub type PinNumber = u8;
 
 /// Sent by the host to command a test node to set a pin to a specific level
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
