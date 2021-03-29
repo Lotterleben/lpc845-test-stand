@@ -60,6 +60,11 @@ impl TestStand {
         // so is not necessary, as the error case just tells us that another
         // thread holding this lock panicked. We don't care about that, as the
         // mutex is still acquired in that case.
+
+        // the number of GPIO pins the test assistant has
+        let assistant_num_pins: u8 = 40; // TODO find a better place than to hardcode this here.
+                                         // maybe the test-stand.toml ?
+
         lazy_static! { static ref MUTEX: Mutex<()> = Mutex::new(()); }
         let guard = MUTEX.lock();
 
@@ -78,7 +83,7 @@ impl TestStand {
         if let Some(path) = config.assistant {
             let conn = Conn::new(&path)
                 .map_err(|err| TestStandInitError::ConnInit(err))?;
-            assistant = Ok(Assistant::new(conn));
+            assistant = Ok(Assistant::new(conn, assistant_num_pins));
         }
 
         Ok(
