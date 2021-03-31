@@ -1,5 +1,7 @@
 //! Library to support the test suite running on the host computer
 
+// AJM TODO
+#![allow(unreachable_code)]
 
 pub mod assistant;
 pub mod config;

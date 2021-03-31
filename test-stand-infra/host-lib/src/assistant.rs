@@ -20,6 +20,9 @@ use crate::{
     pin::{
         Pin,
         ReadLevelError,
+
+        DynamicPin,
+        PinDirection,
     },
 };
 
@@ -31,12 +34,6 @@ use crate::{
 const RTS_PIN_NUMBER: PinNumber = 18;
 const CTS_PIN_NUMBER: PinNumber = 19;
 const TARGET_TIMER_PIN_NUMBER: PinNumber = 30;
-
-#[derive(Debug)]
-enum PinDirection {
-    Input,
-    Output
-}
 
 // TODO tokenize instead
 pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [6, 29, 31, 33];
@@ -78,7 +75,7 @@ pub struct OutputPin<'assistant, Assistant> {
     assistant: &'assistant RwLock<Assistant>,
 }
 
-fn valid_pin_choice(pin: PinNumber, direction: PinDirection) -> Result<(), AssistantError>{
+pub(crate) fn valid_pin_choice(pin: PinNumber, direction: PinDirection) -> Result<(), AssistantError>{
     match (pin, direction) {
         (5, PinDirection::Output) => Ok(()),
         (29, PinDirection::Output) => Ok(()), // red
@@ -137,9 +134,10 @@ impl AssistantInterface<Assistant> {
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    pin.set_direction_input::<HostToAssistant>(&mut assistant.conn)
-                        .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
-                        .unwrap();
+                    todo!("Replace with pin sanity check");
+                    // pin.set_direction_input::<HostToAssistant>(&mut assistant.conn)
+                    //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
+                    //     .unwrap();
 
                     return Ok(InputPin {
                         assistant: &self.real_assistant,
@@ -185,9 +183,10 @@ impl AssistantInterface<Assistant> {
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    pin.set_direction_output::<HostToAssistant>(level, &mut assistant.conn)
-                        .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
-                        .unwrap();
+                    todo!("Replace with pin sanity check");
+                    // pin.set_direction_output::<HostToAssistant>(level, &mut assistant.conn)
+                    //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
+                    //     .unwrap();
 
                     return Ok(OutputPin {
                         assistant: &self.real_assistant,
@@ -460,13 +459,14 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     pub fn set_low(&mut self) -> Result<(), AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
-        match lock {
-            Ok(mut assistant) => self
-                .pin
-                .set_level::<HostToAssistant>(pin::Level::Low, &mut assistant.conn)
-                .map_err(|err| AssistantError::SetPinLow(err)),
-            Err(_) => Err(AssistantError::AssistantLocked),
-        }
+        todo!("Do the mode match here")
+        // match lock {
+        //     Ok(mut assistant) => self
+        //         .pin
+        //         .set_level::<HostToAssistant>(pin::Level::Low, &mut assistant.conn)
+        //         .map_err(|err| AssistantError::SetPinLow(err)),
+        //     Err(_) => Err(AssistantError::AssistantLocked),
+        // }
     }
 
     /// Set this pin's level to High.
@@ -480,13 +480,14 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     pub fn set_high(&mut self) -> Result<(), AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
-        match lock {
-            Ok(mut assistant) => self
-                .pin
-                .set_level::<HostToAssistant>(pin::Level::High, &mut assistant.conn)
-                .map_err(|err| AssistantError::SetPinLow(err)),
-            Err(_) => Err(AssistantError::AssistantLocked),
-        }
+        todo!("Do the mode match here")
+        // match lock {
+        //     Ok(mut assistant) => self
+        //         .pin
+        //         .set_level::<HostToAssistant>(pin::Level::High, &mut assistant.conn)
+        //         .map_err(|err| AssistantError::SetPinLow(err)),
+        //     Err(_) => Err(AssistantError::AssistantLocked),
+        // }
     }
 
     /// Indicates whether this pin currently is set to **Low**
@@ -547,8 +548,9 @@ impl Assistant {
         pin: &mut Pin<DynamicPin>,
         level: pin::Level,
     ) -> Result<(), AssistantError> {
-        pin.set_direction_output::<HostToAssistant>(level, &mut self.conn)
-            .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
+        todo!("Replace with pin sanity check");
+        // pin.set_direction_output::<HostToAssistant>(level, &mut self.conn)
+            // .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
     }
 
     // internal helper
@@ -556,22 +558,24 @@ impl Assistant {
         &mut self,
         pin: &mut Pin<DynamicPin>,
     ) -> Result<(), AssistantError> {
-        pin.set_direction_input::<HostToAssistant>(&mut self.conn)
-            .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
+        todo!("Replace with pin sanity check");
+        // pin.set_direction_input::<HostToAssistant>(&mut self.conn)
+        //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
     }
 
     fn pin_is_low(
         &mut self,
         pin: &mut Pin<DynamicPin>,
     ) -> Result<bool , AssistantError> {
-        let pin_state = pin
-            .read_level::<HostToAssistant, AssistantToHost>(
-                Duration::from_millis(10),
-                &mut self.conn,
-            )
-            .map_err(|err| AssistantError::PinRead(err))?;
+        todo!("Do the mode match here")
+        // let pin_state = pin
+        //     .read_level::<HostToAssistant, AssistantToHost>(
+        //         Duration::from_millis(10),
+        //         &mut self.conn,
+        //     )
+        //     .map_err(|err| AssistantError::PinRead(err))?;
 
-        Ok(pin_state.0 == pin::Level::Low)
+        // Ok(pin_state.0 == pin::Level::Low)
     }
 
     /// Make the test-assistant's pin with number `pin` an Input pin.
@@ -580,15 +584,16 @@ impl Assistant {
         &mut self,
         pin: DynamicPin,
     ) -> Result<(), AssistantError> {
-        match pin {
-            DynamicPin::GPIO(pin_number) => self
-                .pins
-                .get_mut(&pin_number)
-                .unwrap()
-                .set_direction_input::<HostToAssistant>(&mut self.conn)
-                .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err))),
-            _ => todo!(),
-        }
+        todo!("Do the mode match here")
+        // match pin {
+        //     DynamicPin::GPIO(pin_number) => self
+        //         .pins
+        //         .get_mut(&pin_number)
+        //         .unwrap()
+        //         .set_direction_input::<HostToAssistant>(&mut self.conn)
+        //         .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err))),
+        //     _ => todo!(),
+        // }
     }
 
     /// Make the test-assistant's `pin` an Output pin.
@@ -601,51 +606,55 @@ impl Assistant {
     ///   * assistant locked
     ///   * send timeout
     ///   * `AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err)))`
-    pub fn set_pin_direction_output(
+    fn set_pin_direction_output(
         &mut self,
         pin: DynamicPin,
         level: pin::Level,
     ) -> Result<(), AssistantError> {
-        match pin {
-            DynamicPin::GPIO(pin_number) => self
-                .pins
-                .get_mut(&pin_number)
-                .unwrap()
-                .set_direction_output::<HostToAssistant>(level, &mut self.conn)
-                .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err))),
-            _ => todo!(),
-        }
+        todo!("Do the mode match here")
+        // match pin {
+        //     DynamicPin::GPIO(pin_number) => self
+        //         .pins
+        //         .get_mut(&pin_number)
+        //         .unwrap()
+        //         .set_direction_output::<HostToAssistant>(level, &mut self.conn)
+        //         .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err))),
+        //     _ => todo!(),
+        // }
     }
 
     /// Instruct the assistant to disable CTS
     pub fn disable_cts(&mut self) -> Result<(), AssistantError> {
-        self.pins
-            .get_mut(&CTS_PIN_NUMBER)
-            .unwrap()
-            .set_level::<HostToAssistant>(pin::Level::High, &mut self.conn)
-            .map_err(|err| AssistantError::SetPinHigh(err))
+        todo!("Do the mode match here")
+        // self.pins
+        //     .get_mut(&CTS_PIN_NUMBER)
+        //     .unwrap()
+        //     .set_level::<HostToAssistant>(pin::Level::High, &mut self.conn)
+        //     .map_err(|err| AssistantError::SetPinHigh(err))
     }
 
     /// Instruct the assistant to enable CTS
     pub fn enable_cts(&mut self) -> Result<(), AssistantError> {
-        self.pins
-            .get_mut(&CTS_PIN_NUMBER)
-            .unwrap()
-            .set_level::<HostToAssistant>(pin::Level::Low, &mut self.conn)
-            .map_err(|err| AssistantError::SetPinLow(err))
+        todo!("Do the mode match here")
+        // self.pins
+        //     .get_mut(&CTS_PIN_NUMBER)
+        //     .unwrap()
+        //     .set_level::<HostToAssistant>(pin::Level::Low, &mut self.conn)
+        //     .map_err(|err| AssistantError::SetPinLow(err))
     }
 
     /// Wait for RTS signal to be enabled
     pub fn wait_for_rts(&mut self) -> Result<bool, AssistantError> {
-        let pin_state = self
-            .pins
-            .get_mut(&RTS_PIN_NUMBER)
-            .unwrap()
-            .read_level::<HostToAssistant, AssistantToHost>(
-                Duration::from_millis(10),
-                &mut self.conn,
-            )?;
-        Ok(pin_state.0 == pin::Level::Low)
+        todo!("Do the mode match here")
+        // let pin_state = self
+        //     .pins
+        //     .get_mut(&RTS_PIN_NUMBER)
+        //     .unwrap()
+        //     .read_level::<HostToAssistant, AssistantToHost>(
+        //         Duration::from_millis(10),
+        //         &mut self.conn,
+        //     )?;
+        // Ok(pin_state.0 == pin::Level::Low)
     }
 
     /// Instruct assistant to send this message to the target via USART
@@ -757,18 +766,21 @@ impl Assistant {
 
         let mut measurement: Option<GpioPeriodMeasurement> = None;
 
-        let (mut state, _) = self
-            .pins
-            .get_mut(&TARGET_TIMER_PIN_NUMBER)
-            .unwrap()
-            .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
+
+        let (mut state, _): ((), std::option::Option<u64>) = todo!("Do the mode match here");
+        // self
+        //     .pins
+        //     .get_mut(&TARGET_TIMER_PIN_NUMBER)
+        //     .unwrap()
+        //     .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
 
         for _ in 0..samples {
-            let (new_state, period_ms) =
-                self.pins
-                    .get_mut(&TARGET_TIMER_PIN_NUMBER)
-                    .unwrap()
-                    .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
+
+            let (new_state, period_ms): (_, Option<u64>) = todo!("Do the mode match here");
+            //     self.pins
+            //         .get_mut(&TARGET_TIMER_PIN_NUMBER)
+            //         .unwrap()
+            //         .read_level::<HostToAssistant, AssistantToHost>(timeout, &mut self.conn)?;
             print!("{:?}, {:?}\n", new_state, period_ms);
 
             if new_state == state {

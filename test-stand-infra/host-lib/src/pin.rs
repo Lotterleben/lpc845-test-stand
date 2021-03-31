@@ -14,7 +14,10 @@ use serde::{
     Serialize,
 };
 
-use protocol::pin;
+use protocol::{
+    pin,
+    HostToAssistant,
+};
 
 use crate::conn::{
     Conn,
@@ -22,6 +25,32 @@ use crate::conn::{
     ConnSendError,
 };
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) enum PinDirection {
+    Input,
+    Output
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+pub(crate) enum DynamicPin {
+    GPIO(u8),
+}
+
+// impl From<pin::SetLevel<DynamicPin>> for HostToAssistant<'_> {
+//     fn from(set_level: pin::SetLevel<DynamicPin>) -> Self {
+//         // todo: If we are input, send input, if we are output, send output
+//         // Self::SetDynamicPin(set_level)
+//         todo!("See above");
+//     }
+// }
+
+// impl From<pin::ReadLevel<DynamicPin>> for HostToAssistant<'_> {
+//     fn from(read_level: pin::ReadLevel<DynamicPin>) -> Self {
+//         // todo: If we are input, send input, if we are output, send output
+//         // Self::ReadDynamicPin(read_level)
+//         todo!("See above");
+//     }
+// }
 
 /// API for remotely controlling and monitoring a pin on a test node
 ///
@@ -32,7 +61,8 @@ pub struct Pin<Id> {
 }
 
 impl<Id> Pin<Id>
-    where Id: Copy
+where
+    Id: Copy,
 {
     /// Create a new instance of `Pins`
     pub fn new(pin: Id) -> Self {
@@ -60,42 +90,6 @@ impl<Id> Pin<Id>
 
         Ok(())
     }
-
-    /// Commands the node to change pin direction to input
-    pub fn set_direction_input<M>(&mut self,
-        conn: &mut Conn,
-    )
-        -> Result<(), ConnSendError>
-        where
-            M: From<pin::SetDirection<Id>> + Serialize,
-    {
-        let command = pin::SetDirection { pin: self.pin,
-                                                         direction: pin::Direction::Input,
-                                                         level: None };
-        let message: M = command.into();
-        conn.send(&message)?;
-
-        Ok(())
-    }
-
-    /// Commands the node to change pin direction to output and set the pin to level
-    pub fn set_direction_output<M>(&mut self,
-        level: pin::Level,
-        conn: &mut Conn,
-    )
-        -> Result<(), ConnSendError>
-        where
-            M: From<pin::SetDirection<Id>> + Serialize,
-    {
-        let command = pin::SetDirection { pin: self.pin,
-                                                         direction: pin::Direction::Output,
-                                                         level: Some(level) };
-        let message: M = command.into();
-        conn.send(&message)?;
-
-        Ok(())
-    }
-
 
     /// Read level for the given pin
     ///
