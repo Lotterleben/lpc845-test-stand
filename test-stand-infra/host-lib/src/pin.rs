@@ -1,6 +1,7 @@
 //! API for remotely controlling and monitoring pins on a test node
 
 
+use core::panic;
 use std::{
     convert::TryInto,
     fmt::Debug,
@@ -19,11 +20,11 @@ use protocol::{
     HostToAssistant,
 };
 
-use crate::conn::{
+use crate::{assistant::InputPin, conn::{
     Conn,
     ConnReceiveError,
     ConnSendError,
-};
+}};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum PinDirection {
@@ -31,10 +32,52 @@ pub(crate) enum PinDirection {
     Output
 }
 
+// TODO investigate if copy is dangerous after all here
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
-pub(crate) enum DynamicPin {
-    GPIO(u8),
+pub(crate) enum PinToken {
+    GPIO(u8), // TODO make pinnumber
 }
+
+impl PinToken {
+    fn as_input_pin(pin_token: PinToken) -> protocol::InputPin {
+        match pin_token {
+            PinToken::GPIO(30) => protocol::InputPin::Blue,
+            PinToken::GPIO(31) => protocol::InputPin::Green,
+            PinToken::GPIO(18) => protocol::InputPin::Rts,
+            // TODO what's the pwm pin again?
+            _ => panic!("This is not an input pin"),
+        }
+    }
+}
+
+impl PinToken {
+    fn as_output_pin(pin_token: PinToken) -> protocol::OutputPin {
+        match pin_token {
+            PinToken::GPIO(5) => protocol::OutputPin::Pin5,
+            PinToken::GPIO(29) => protocol::OutputPin::Red,
+            PinToken::GPIO(19) => protocol::OutputPin::Cts,
+            _ => panic!("This is not an output pin"),
+        }
+    }
+}
+
+// /// Represents one of the pins that the assistant is monitoring
+// #[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
+// pub enum InputPin {
+//     Blue  = 0,
+//     Green = 1,
+//     Rts   = 2,
+//     Pwm   = 3,
+// }
+
+// /// Represents one of the pins that the assistant can set
+// #[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
+// pub enum OutputPin {
+//     Pin5,
+//     Cts,
+//     Red,
+// }
+
 
 // impl From<pin::SetLevel<DynamicPin>> for HostToAssistant<'_> {
 //     fn from(set_level: pin::SetLevel<DynamicPin>) -> Self {

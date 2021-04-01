@@ -21,7 +21,7 @@ use crate::{
         Pin,
         ReadLevelError,
 
-        DynamicPin,
+        PinToken,
         PinDirection,
     },
 };
@@ -35,14 +35,6 @@ const RTS_PIN_NUMBER: PinNumber = PinNumber::new(18);
 const CTS_PIN_NUMBER: PinNumber = PinNumber::new(19);
 const TARGET_TIMER_PIN_NUMBER: PinNumber = PinNumber::new(30);
 
-// TODO tokenize instead
-pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [
-    PinNumber::new(6),
-    PinNumber::new(29),
-    PinNumber::new(31),
-    PinNumber::new(33),
-];
-
 /// A wrapper around the test-assistant for easy pin configuration.
 pub struct AssistantInterface<Assistant> {
     real_assistant: RwLock<Assistant>,
@@ -55,7 +47,7 @@ pub struct Assistant {
     /// connection between test-assistant and host
     conn: Conn,
     /// all of the assitant's GPIO pins, keyed by pin number (Arduino style)
-    pins: HashMap<PinNumber, Pin<DynamicPin>>,
+    pins: HashMap<PinNumber, Pin<PinToken>>,
 }
 
 /// A dynamically reconfigurable Pin whose current direction is input.
@@ -64,7 +56,7 @@ pub struct InputPin<'assistant, Assistant> {
     /// from top left counterclockwise to top right
     /// (see https://www.nxp.com/assets/images/en/block-diagrams/LPC845-BRK-BD2.png )
     pin_number: PinNumber,
-    pin: Pin<DynamicPin>,
+    pin: Pin<PinToken>,
     /// The test-assistant instance that manages this pin (needed to access conn)
     assistant: &'assistant RwLock<Assistant>,
 }
@@ -75,7 +67,7 @@ pub struct OutputPin<'assistant, Assistant> {
     /// from top left counterclockwise to top right
     /// (see https://www.nxp.com/assets/images/en/block-diagrams/LPC845-BRK-BD2.png )
     pin_number: PinNumber,
-    pin: Pin<DynamicPin>,
+    pin: Pin<PinToken>,
     /// The test-assistant instance that manages this pin (needed to access conn)
     assistant: &'assistant RwLock<Assistant>,
 }
@@ -124,26 +116,18 @@ impl AssistantInterface<Assistant> {
         &self,
         pin_number: PinNumber,
     ) -> Result<InputPin<Assistant>, AssistantError> {
-
-        // TODO use tokens to detect this at compile time
-        if !LEGAL_DYNAMIC_PINS.contains(&pin_number) {
-            print!("Error: trying to use pin that is not configurable from tests: {:?}\n", pin_number);
-            return Err(AssistantError::PinOperation(AssistantPinOperationError::IllegalPinNumber(pin_number)));
-        }
+        valid_pin_choice(
+            pin_number.clone(),
+            PinDirection::Input
+        )?;
 
         // TODO untangle match statement below
         let lock = self.real_assistant.try_write();
         // note to self: loop until we get the lock?
         if let Ok(mut assistant) = lock {
-            // TODO make this a match instead?
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    valid_pin_choice(
-                        pin_number.clone(),
-                        PinDirection::Input
-                    )?;
-
                     return Ok(InputPin {
                         assistant: &self.real_assistant,
                         pin_number: pin_number,
@@ -174,25 +158,20 @@ impl AssistantInterface<Assistant> {
         pin_number: PinNumber,
         level: pin::Level,
     ) -> Result<OutputPin<Assistant>, AssistantError> {
-        // TODO use tokens to detect this at compile time
-        if !LEGAL_DYNAMIC_PINS.contains(&pin_number) {
-            print!("Error: trying to use pin that is not configurable from tests: {:?}\n", pin_number);
-            return Err(AssistantError::PinOperation(AssistantPinOperationError::IllegalPinNumber(pin_number)));
-        }
+
+        valid_pin_choice(
+            pin_number.clone(),
+            PinDirection::Output,
+        )?;
 
         // TODO untangle match statement below
         let lock = self.real_assistant.try_write();
         // note to self: loop until we get the lock?
         if let Ok(mut assistant) = lock {
-            // TODO make this a match instead?
+
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    todo!("Replace with pin sanity check");
-                    // pin.set_direction_output::<HostToAssistant>(level, &mut assistant.conn)
-                    //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
-                    //     .unwrap();
-
                     return Ok(OutputPin {
                         assistant: &self.real_assistant,
                         pin_number: pin_number,
@@ -443,14 +422,15 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     pub fn set_low(&mut self) -> Result<(), AssistantError> {
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
-        todo!("Do the mode match here")
-        // match lock {
-        //     Ok(mut assistant) => self
-        //         .pin
-        //         .set_level::<HostToAssistant>(pin::Level::Low, &mut assistant.conn)
-        //         .map_err(|err| AssistantError::SetPinLow(err)),
-        //     Err(_) => Err(AssistantError::AssistantLocked),
-        // }
+        match lock {
+            Ok(mut assistant) => {
+                let new_pin: protocol::OutputPin = self.pin.clone().into();
+                new_pin
+                    .set_level::<HostToAssistant>(pin::Level::Low, &mut assistant.conn)
+                    .map_err(|err| AssistantError::SetPinLow(err))
+            },
+            Err(_) => Err(AssistantError::AssistantLocked),
+        }
     }
 
     /// Set this pin's level to High.
@@ -515,7 +495,7 @@ impl Assistant {
             s.pins
                 .insert(
                     PinNumber::new(pin_number),
-                    Pin::new(DynamicPin::GPIO(pin_number)
+                    Pin::new(PinToken::GPIO(pin_number)
                 ));
         }
 
@@ -524,7 +504,7 @@ impl Assistant {
 
     fn pin_is_low(
         &mut self,
-        pin: &mut Pin<DynamicPin>,
+        pin: &mut Pin<PinToken>,
     ) -> Result<bool , AssistantError> {
         todo!("Do the mode match here")
         // let pin_state = pin
