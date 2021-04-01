@@ -83,7 +83,7 @@ pub(crate) fn valid_pin_choice(pin: PinNumber, direction: PinDirection) -> Resul
         (31, PinDirection::Input) => Ok(()), // green
         (18, PinDirection::Input) => Ok(()), // rts
         (19, PinDirection::Output) => Ok(()), // cts
-        _ => Err(AssistantError::PinOperation(AssistantPinOperationError::IllegalPinNumber(pin)))
+        _ => Err(AssistantError::NotDynamic),
     }
 }
 
@@ -134,10 +134,7 @@ impl AssistantInterface<Assistant> {
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    todo!("Replace with pin sanity check");
-                    // pin.set_direction_input::<HostToAssistant>(&mut assistant.conn)
-                    //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
-                    //     .unwrap();
+                    valid_pin_choice(pin_number, PinDirection::Input)?;
 
                     return Ok(InputPin {
                         assistant: &self.real_assistant,
@@ -426,27 +423,6 @@ impl<'assistant> InputPin<'assistant, Assistant> {
 }
 
 impl<'assistant> OutputPin<'assistant, Assistant> {
-    /// Convert this pin into an Input pin
-    pub fn into_input_pin(
-        mut self,
-    ) -> Result<InputPin<'assistant, Assistant>, AssistantError> {
-        // note to self: loop until we get the lock?
-        let lock = self.assistant.try_write();
-
-        match lock {
-            Ok(mut assistant) => {
-                assistant.pin_direction_to_input(&mut self.pin).unwrap();
-
-                Ok(InputPin {
-                    pin_number: self.pin_number,
-                    pin: self.pin,
-                    assistant: self.assistant,
-                })
-            }
-            Err(_) => Err(AssistantError::AssistantLocked),
-        }
-    }
-
     /// Set this pin's level to Low.
     ///
     /// * Sends:
@@ -532,35 +508,7 @@ impl Assistant {
                 .insert(pin_number, Pin::new(DynamicPin::GPIO(pin_number)));
         }
 
-        // make sure rts and cts have the right direction
-        s.set_pin_direction_input(DynamicPin::GPIO(RTS_PIN_NUMBER))
-            .unwrap();
-        // TODO double check with old code if this is the correct default level?
-        s.set_pin_direction_output(DynamicPin::GPIO(CTS_PIN_NUMBER), pin::Level::Low)
-            .unwrap();
-
         return s;
-    }
-
-    // internal helper
-    fn pin_direction_to_output(
-        &mut self,
-        pin: &mut Pin<DynamicPin>,
-        level: pin::Level,
-    ) -> Result<(), AssistantError> {
-        todo!("Replace with pin sanity check");
-        // pin.set_direction_output::<HostToAssistant>(level, &mut self.conn)
-            // .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
-    }
-
-    // internal helper
-    fn pin_direction_to_input(
-        &mut self,
-        pin: &mut Pin<DynamicPin>,
-    ) -> Result<(), AssistantError> {
-        todo!("Replace with pin sanity check");
-        // pin.set_direction_input::<HostToAssistant>(&mut self.conn)
-        //     .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err)))
     }
 
     fn pin_is_low(
@@ -576,51 +524,6 @@ impl Assistant {
         //     .map_err(|err| AssistantError::PinRead(err))?;
 
         // Ok(pin_state.0 == pin::Level::Low)
-    }
-
-    /// Make the test-assistant's pin with number `pin` an Input pin.
-    /// Note: this is a legacy function and should probably be refactored out (TODO)
-    fn set_pin_direction_input(
-        &mut self,
-        pin: DynamicPin,
-    ) -> Result<(), AssistantError> {
-        todo!("Do the mode match here")
-        // match pin {
-        //     DynamicPin::GPIO(pin_number) => self
-        //         .pins
-        //         .get_mut(&pin_number)
-        //         .unwrap()
-        //         .set_direction_input::<HostToAssistant>(&mut self.conn)
-        //         .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionInput(err))),
-        //     _ => todo!(),
-        // }
-    }
-
-    /// Make the test-assistant's `pin` an Output pin.
-    /// * Sends:
-    ///   * [`HostToAssistant::SetDirection`](HostToAssistant::SetDirection)
-    /// * On Success:
-    ///   * nothing is received
-    ///   * CTS pin is high
-    /// * Potential Errors:
-    ///   * assistant locked
-    ///   * send timeout
-    ///   * `AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err)))`
-    fn set_pin_direction_output(
-        &mut self,
-        pin: DynamicPin,
-        level: pin::Level,
-    ) -> Result<(), AssistantError> {
-        todo!("Do the mode match here")
-        // match pin {
-        //     DynamicPin::GPIO(pin_number) => self
-        //         .pins
-        //         .get_mut(&pin_number)
-        //         .unwrap()
-        //         .set_direction_output::<HostToAssistant>(level, &mut self.conn)
-        //         .map_err(|err| AssistantError::PinOperation(AssistantPinOperationError::SetPinDirectionOutput(err))),
-        //     _ => todo!(),
-        // }
     }
 
     /// Instruct the assistant to disable CTS
@@ -860,6 +763,10 @@ pub enum AssistantError {
     UsartWait(AssistantUsartWaitError),
     PinOperation(AssistantPinOperationError),
     AssistantLocked,
+
+    /// Attempted to dynamically reconfigure a hardcoded test-assistant
+    /// configuration item
+    NotDynamic,
 }
 
 impl From<ReadLevelError> for AssistantError {

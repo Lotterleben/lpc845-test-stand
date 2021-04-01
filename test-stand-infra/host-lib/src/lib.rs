@@ -10,22 +10,22 @@ pub mod error;
 pub mod pin;
 pub mod test_stand;
 
+// TODO - re-instate or remove before commit
+// compile_error!("""
+//     Notes: 2021-03-31
 
-compile_error!("""
-    Notes: 2021-03-31
+//     We need to begin removing the todo statements, primarily by
+//     using a match statement to convert the internal DynamicPin Token
+//     into ephemeral instances of InputPin or OutputPin in order to
+//     create the correct type for serialization
 
-    We need to begin removing the todo statements, primarily by
-    using a match statement to convert the internal DynamicPin Token
-    into ephemeral instances of InputPin or OutputPin in order to
-    create the correct type for serialization
+//     Lotte: Replace our local DynamicPin with a HAL DynamicPin?
+//     James: What about other HALs?
+//     Lotte: Can we make this a trait/generic instead? Use ones we have?
+//     James: This requires dynamic dispatch, but that might be okay
 
-    Lotte: Replace our local DynamicPin with a HAL DynamicPin?
-    James: What about other HALs?
-    Lotte: Can we make this a trait/generic instead? Use ones we have?
-    James: This requires dynamic dispatch, but that might be okay
-
-    Consider doing this instead of manual matching everywhere
-""");
+//     Consider doing this instead of manual matching everywhere
+// """);
 
 pub use self::{
     assistant::Assistant,
