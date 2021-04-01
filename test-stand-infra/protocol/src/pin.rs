@@ -11,7 +11,18 @@ use serde::{
 
 /// Index of a LPC845 breakout board pinout, counted from top left counterclockwise to top right
 /// (see https://www.nxp.com/assets/images/en/block-diagrams/LPC845-BRK-BD2.png )
-pub type PinNumber = u8;
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone)]
+pub struct PinNumber(pub u8);
+
+impl PinNumber {
+    pub const fn new(idx: u8) -> Self {
+        Self(idx)
+    }
+
+    pub const fn get_pin_idx(&self) -> u8 {
+        self.0
+    }
+}
 
 /// Sent by the host to command a test node to set a pin to a specific level
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]

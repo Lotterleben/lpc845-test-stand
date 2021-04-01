@@ -31,12 +31,17 @@ use crate::{
 
 // TODO find a place to share them with t-a and t-t?
 /// some commonly used pin numbers
-const RTS_PIN_NUMBER: PinNumber = 18;
-const CTS_PIN_NUMBER: PinNumber = 19;
-const TARGET_TIMER_PIN_NUMBER: PinNumber = 30;
+const RTS_PIN_NUMBER: PinNumber = PinNumber::new(18);
+const CTS_PIN_NUMBER: PinNumber = PinNumber::new(19);
+const TARGET_TIMER_PIN_NUMBER: PinNumber = PinNumber::new(30);
 
 // TODO tokenize instead
-pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [6, 29, 31, 33];
+pub static LEGAL_DYNAMIC_PINS: [PinNumber; 4] = [
+    PinNumber::new(6),
+    PinNumber::new(29),
+    PinNumber::new(31),
+    PinNumber::new(33),
+];
 
 /// A wrapper around the test-assistant for easy pin configuration.
 pub struct AssistantInterface<Assistant> {
@@ -76,7 +81,7 @@ pub struct OutputPin<'assistant, Assistant> {
 }
 
 pub(crate) fn valid_pin_choice(pin: PinNumber, direction: PinDirection) -> Result<(), AssistantError>{
-    match (pin, direction) {
+    match (pin.get_pin_idx(), direction) {
         (5, PinDirection::Output) => Ok(()),
         (29, PinDirection::Output) => Ok(()), // red
         (30, PinDirection::Input) => Ok(()), // blue
@@ -134,7 +139,10 @@ impl AssistantInterface<Assistant> {
             // pull pin out so it can't be reassigned
             match assistant.pins.remove(&pin_number) {
                 Some(mut pin) => {
-                    valid_pin_choice(pin_number, PinDirection::Input)?;
+                    valid_pin_choice(
+                        pin_number.clone(),
+                        PinDirection::Input
+                    )?;
 
                     return Ok(InputPin {
                         assistant: &self.real_assistant,
@@ -505,7 +513,10 @@ impl Assistant {
         // init all pins
         for pin_number in 1..=num_pins {
             s.pins
-                .insert(pin_number, Pin::new(DynamicPin::GPIO(pin_number)));
+                .insert(
+                    PinNumber::new(pin_number),
+                    Pin::new(DynamicPin::GPIO(pin_number)
+                ));
         }
 
         return s;
