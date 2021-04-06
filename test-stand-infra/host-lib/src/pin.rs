@@ -20,11 +20,17 @@ use protocol::{
     HostToAssistant,
 };
 
-use crate::{assistant::InputPin, conn::{
-    Conn,
-    ConnReceiveError,
-    ConnSendError,
-}};
+use crate::{
+    assistant::{
+        InputPin,
+        AssistantError,
+    },
+    conn::{
+        Conn,
+        ConnReceiveError,
+        ConnSendError,
+    }
+};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum PinDirection {
@@ -39,24 +45,22 @@ pub(crate) enum PinToken {
 }
 
 impl PinToken {
-    fn as_input_pin(pin_token: PinToken) -> protocol::InputPin {
-        match pin_token {
-            PinToken::GPIO(30) => protocol::InputPin::Blue,
-            PinToken::GPIO(31) => protocol::InputPin::Green,
-            PinToken::GPIO(18) => protocol::InputPin::Rts,
+    pub(crate) fn try_as_input_pin(&self) -> Result<protocol::InputPin, AssistantError> {
+        match self {
+            PinToken::GPIO(30) => Ok(protocol::InputPin::Blue),
+            PinToken::GPIO(31) => Ok(protocol::InputPin::Green),
+            PinToken::GPIO(18) => Ok(protocol::InputPin::Rts),
             // TODO what's the pwm pin again?
-            _ => panic!("This is not an input pin"),
+            _ => Err(AssistantError::NotDynamic),
         }
     }
-}
 
-impl PinToken {
-    fn as_output_pin(pin_token: PinToken) -> protocol::OutputPin {
-        match pin_token {
-            PinToken::GPIO(5) => protocol::OutputPin::Pin5,
-            PinToken::GPIO(29) => protocol::OutputPin::Red,
-            PinToken::GPIO(19) => protocol::OutputPin::Cts,
-            _ => panic!("This is not an output pin"),
+    pub(crate) fn try_as_output_pin(&self) -> Result<protocol::OutputPin, AssistantError> {
+        match self {
+            PinToken::GPIO(5) => Ok(protocol::OutputPin::Pin5),
+            PinToken::GPIO(29) => Ok(protocol::OutputPin::Red),
+            PinToken::GPIO(19) => Ok(protocol::OutputPin::Cts),
+            _ => Err(AssistantError::NotDynamic),
         }
     }
 }
@@ -100,7 +104,7 @@ impl PinToken {
 /// This struct is intended as a building block for higher-level interfaces
 /// that control the test nodes of a specific test stand.
 pub struct Pin<Id> {
-    pin: Id,
+    pub(crate) pin: Id,
 }
 
 impl<Id> Pin<Id>

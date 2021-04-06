@@ -420,11 +420,13 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
     ///   * assistant locked
     ///   * send timeout
     pub fn set_low(&mut self) -> Result<(), AssistantError> {
+        // Pin<PinToken> -> Pin<OutputPin>
+        let mut new_pin: Pin<protocol::OutputPin> = Pin::new(self.pin.pin.try_as_output_pin()?);
+
         // TODO handle lock getting failures better
         let lock = self.assistant.try_write();
         match lock {
             Ok(mut assistant) => {
-                let new_pin: protocol::OutputPin = self.pin.clone().into();
                 new_pin
                     .set_level::<HostToAssistant>(pin::Level::Low, &mut assistant.conn)
                     .map_err(|err| AssistantError::SetPinLow(err))
