@@ -32,8 +32,12 @@ fn make_instance() {
 //     let test_hdl = mock.clone();
 
 //     let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
-//     let mut assistant = Assistant::new(conn);
-//     assistant.set_pin_5_high().unwrap();
+//     let assistant_conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+
+//     let test_stand =
+//         TestStand::new_with_connection(Ok(assistant_conn), Err(NotConfiguredError(""))).unwrap();
+
+//     test_stand.assistant.set_pin_5_high().unwrap();
 
 //     let msg = test_hdl.pop_host_lib_data().unwrap();
 //     let mut msg_clone = msg.clone();
@@ -133,32 +137,39 @@ fn make_instance() {
 //     assert!(test_hdl.is_totally_empty());
 // }
 
-// #[test]
-// fn disable_cts() {
-//     let mock = MockConn::new();
-//     let test_hdl = mock.clone();
+#[test]
+fn disable_cts() {
+    let mock = MockConn::new();
+    let test_hdl = mock.clone();
 
-//     let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
-//     let mut assistant = Assistant::new(conn);
-//     assistant.disable_cts().unwrap();
+    let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+    let assistant = Assistant::new(conn, 40);
 
-//     let msg = test_hdl.pop_host_lib_data().unwrap();
-//     let mut msg_clone = msg.clone();
-//     let deser_msg: HostToAssistant = postcard::from_bytes_cobs(&mut msg_clone).unwrap();
+    let mut test_stand =
+         TestStand::new_with_connection(Err(NotConfiguredError("")), Ok(assistant)).unwrap();
 
-//     // TODO: Use the protocol to deserialize?
-//     assert_debug_snapshot!(
-//         "disable_cts - bytes",
-//         &msg
-//     );
+    // TODO smelly interface. re-think
+    let assistant = test_stand.assistant.as_mut().unwrap();
 
-//     assert_debug_snapshot!(
-//         "disable_cts - parsed",
-//         &deser_msg
-//     );
+    assistant.disable_cts().unwrap();
 
-//     assert!(test_hdl.is_totally_empty());
-// }
+    let msg = test_hdl.pop_host_lib_data().unwrap();
+    let mut msg_clone = msg.clone();
+    let deser_msg: HostToAssistant = postcard::from_bytes_cobs(&mut msg_clone).unwrap();
+
+    // TODO: Use the protocol to deserialize?
+    assert_debug_snapshot!(
+        "disable_cts - bytes",
+        &msg
+    );
+
+    assert_debug_snapshot!(
+        "disable_cts - parsed",
+        &deser_msg
+    );
+
+    assert!(test_hdl.is_totally_empty());
+}
 
 // #[test]
 // fn enable_cts() {

@@ -486,7 +486,7 @@ impl<'assistant> OutputPin<'assistant, Assistant> {
 
 // TODO(LSS) internal helpers should not be pub!
 impl Assistant {
-    pub(crate) fn new(conn: Conn, num_pins: u8) -> Self {
+    pub fn new(conn: Conn, num_pins: u8) -> Self {
         let mut s = Self {
             conn,
             pins: HashMap::new(),
