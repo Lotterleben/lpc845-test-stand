@@ -509,6 +509,7 @@ impl Assistant {
         pin: &mut Pin<PinToken>,
     ) -> Result<bool , AssistantError> {
         todo!("Do the mode match here")
+        // TODO pick up from here
         // let pin_state = pin
         //     .read_level::<HostToAssistant, AssistantToHost>(
         //         Duration::from_millis(10),
