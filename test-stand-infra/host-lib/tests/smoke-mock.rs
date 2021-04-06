@@ -1,9 +1,14 @@
 use host_lib::{
-    assistant::{AssistantInterface, Assistant, GpioPeriodMeasurement},
+    assistant::{Assistant, AssistantInterface, GpioPeriodMeasurement},
     conn::Conn,
+    test_stand::NotConfiguredError,
+    test_stand::TestStand,
 };
-use protocol::{UsartMode, AssistantToHost, HostToAssistant, InputPin, pin::{Level, ReadLevelResult}};
 use postcard;
+use protocol::{
+    pin::{Level, ReadLevelResult},
+    AssistantToHost, HostToAssistant, InputPin, UsartMode,
+};
 use std::time::Duration;
 
 use insta::assert_debug_snapshot;
@@ -13,8 +18,10 @@ fn make_instance() {
     let mock = MockConn::new();
     let test_hdl = mock.clone();
 
-    let conn = Conn::from_serial_port(Box::new(mock)).unwrap();
-    let _assistant = AssistantInterface::new(Assistant::new(conn, 32));
+    let assistant_conn = Conn::from_serial_port(Box::new(mock)).unwrap();
+
+    let test_stand =
+        TestStand::new_with_connection(Ok(assistant_conn), Err(NotConfiguredError("")));
 
     assert!(test_hdl.is_totally_empty());
 }
@@ -447,7 +454,6 @@ fn make_instance() {
 //     assert!(test_hdl.is_totally_empty());
 // }
 
-
 // #[test]
 // fn receive_from_target_usart_inner() {
 //     // SET UP TEST
@@ -483,7 +489,6 @@ fn make_instance() {
 //     // ASSERT POSTCONDITION
 //     assert!(test_hdl.is_totally_empty());
 // }
-
 
 // #[test]
 // fn measure_timer_interrupt() {
@@ -564,7 +569,6 @@ fn make_instance() {
 //         }
 //     );
 
-
 //     // observe host lib behavior
 //     for _ in 0..2 {
 //         let msg = test_hdl.pop_host_lib_data().unwrap();
@@ -607,7 +611,6 @@ fn make_instance() {
 
 //     assert!(assistant.expect_nothing_from_target(Duration::from_millis(100)).is_err());
 
-
 //     // observe host lib behavior
 //     // NOTE: Host doesn't send anything
 
@@ -615,24 +618,17 @@ fn make_instance() {
 //     assert!(test_hdl.is_totally_empty());
 // }
 
-
 // MOCK OF THE `Conn` object from the main crate
 // TODO(AJM) - move to a file in the `tests/` folder
 
 use serialport::{
-    SerialPort,
-    Error as SpError,
-    ClearBuffer,
-    StopBits,
-    Parity,
-    DataBits,
-    FlowControl,
+    ClearBuffer, DataBits, Error as SpError, FlowControl, Parity, SerialPort, StopBits,
 };
-use std::io::{Read, Write};
 use std::io::{Error as IoError, ErrorKind};
+use std::io::{Read, Write};
 
-use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 pub struct MockConn {
     // Data SENT by the PC TO the TA
@@ -758,10 +754,7 @@ impl SerialPort for MockConn {
     fn set_data_bits(&mut self, _: DataBits) -> Result<(), SpError> {
         todo!()
     }
-    fn set_flow_control(
-        &mut self,
-        _: FlowControl,
-    ) -> Result<(), SpError> {
+    fn set_flow_control(&mut self, _: FlowControl) -> Result<(), SpError> {
         todo!()
     }
     fn set_parity(&mut self, _: Parity) -> Result<(), SpError> {
